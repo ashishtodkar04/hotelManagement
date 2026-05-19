@@ -66,73 +66,7 @@ function validateBooking(req, res, next) {
     next();
 };
 
-async function insertBooking({
-    bookingRef,
-    userId,
-    date,
-    time,
-    duration,
-    guests,
-    table,
-    status,
-    adv_paid
-}) {
-    try {
-        const [result] = await db.execute(
-            `call insert_booking(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                bookingRef,
-                userId,
-                date,
-                time,
-                Number(duration),
-                Number(guests),
-                table,
-                status,
-                adv_paid || 0
-            ]
-        );
 
-        return result.insertId;
-    } catch (directErr) {
-        console.warn('Direct booking insert failed, trying stored procedure:', directErr.message);
-
-        try {
-            const [result] = await db.execute(
-                `CALL insert_booking(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    bookingRef,
-                    userId,
-                    date,
-                    time,
-                    Number(duration),
-                    Number(guests),
-                    table,
-                    status,
-                    adv_paid || 0
-                ]
-            );
-
-            if (result && result.length > 0) {
-                // Check if it returned a standard result object with insertId
-                if (result.insertId) return result.insertId;
-
-                // Check if it returned a result set (e.g., SELECT LAST_INSERT_ID())
-                if (Array.isArray(result[0]) && result[0].length > 0) {
-                    const firstRow = result[0][0];
-                    // It might be named 'id', 'insertId', or 'LAST_INSERT_ID()' depending on your SP
-                    return firstRow.id || firstRow.insertId || Object.values(firstRow)[0] || null;
-                }
-            }
-
-            return null;
-
-        } catch (spErr) {
-            console.error('Stored procedure fallback also failed:', spErr.message);
-            throw spErr; // Throw the actual database error so you can see it!
-        }
-    }
-}
 
 const { HOTEL_NAME, HOTEL_TAGLINE, HOTEL_PHONE } = require('../config/hotel');
 router.get('/hotel-config', (req, res) => {
