@@ -1,0 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    
+    /* Light Theme Tokens */
+    --theme-bg: #f8fafc;
+    --theme-text: #0f172a;
+    --theme-text-muted: #64748b;
+    --theme-panel: rgba(255, 255, 255, 0.9);
+    --theme-border: #e2e8f0;
+    --theme-input: #ffffff;
+    --theme-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+    --theme-accent: rgba(37, 99, 235, 0.05);
+    
+    --btn-primary-bg: #0f172a;
+    --btn-primary-text: #ffffff;
+    --btn-secondary-bg: #ffffff;
+    --btn-secondary-text: #0f172a;
+    --btn-secondary-border: #e2e8f0;
+  }
+
+  .dark {
+    /* Dark Theme Tokens */
+    --theme-bg: #020617;
+    --theme-text: #f8fafc;
+    --theme-text-muted: #94a3b8;
+    --theme-panel: rgba(15, 23, 42, 0.8);
+    --theme-border: rgba(255, 255, 255, 0.08);
+    --theme-input: #0f172a;
+    --theme-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    --theme-accent: rgba(37, 99, 235, 0.1);
+    
+    --btn-primary-bg: #f8fafc;
+    --btn-primary-text: #020617;
+    --btn-secondary-bg: rgba(255, 255, 255, 0.05);
+    --btn-secondary-text: #f8fafc;
+    --btn-secondary-border: rgba(255, 255, 255, 0.1);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { 
+    scroll-behavior: smooth; 
+    overflow-x: hidden;
+  }
+
+  body {
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
+    @apply font-sans transition-colors duration-500;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Decorative Ambient Background */
+  .ambient-bg {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.12;
+    animation: float 25s infinite alternate ease-in-out;
+  }
+
+  @keyframes float {
+    0% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(60px, -100px) scale(1.15); }
+    66% { transform: translate(-40px, 50px) scale(0.9); }
+    100% { transform: translate(0, 0) scale(1); }
+  }
+
+  .orb-1 { width: 600px; height: 600px; background: #2563eb; top: -150px; right: -150px; }
+  .orb-2 { width: 450px; height: 450px; background: #6366f1; bottom: -80px; left: -80px; animation-delay: -7s; }
+  .orb-3 { width: 380px; height: 380px; background: #3b82f6; top: 45%; left: 15%; animation-delay: -12s; }
+
+  a { @apply no-underline; }
+  button { @apply cursor-pointer font-sans border-none; }
+
+  input, select, textarea {
+    background-color: var(--theme-input);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text);
+    @apply rounded-2xl px-6 py-4 font-sans outline-none transition-all duration-300;
+  }
+  input:focus, select:focus, textarea:focus {
+    @apply ring-4 ring-blue-500/10 border-blue-500/50;
+  }
+}
+
+@layer components {
+  /* Dynamic Glass Architecture */
+  .glass {
+    background-color: var(--theme-panel);
+    border: 1px solid var(--theme-border);
+    box-shadow: var(--theme-shadow);
+    @apply backdrop-blur-3xl rounded-[3rem] transition-all duration-500;
+  }
+
+  /* Universal Theme-Aware Buttons */
+  .btn-primary {
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    @apply font-black px-10 py-5 rounded-2xl transition-all duration-500 inline-flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[10px] shadow-xl;
+  }
+  .btn-primary:hover {
+    @apply -translate-y-1 scale-105;
+    filter: brightness(1.1);
+  }
+  .btn-primary:active { @apply scale-95; }
+
+  .btn-secondary {
+    background-color: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
+    border: 1px solid var(--btn-secondary-border);
+    @apply font-black px-10 py-5 rounded-2xl transition-all duration-500 inline-flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[10px] shadow-sm;
+  }
+  .btn-secondary:hover {
+    @apply border-blue-600 text-blue-600 -translate-y-1;
+    box-shadow: 0 15px 30px -10px rgba(37,99,235,0.1);
+  }
+
+  /* Sophisticated Status Badges */
+  .badge {
+    @apply inline-flex items-center px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border transition-all;
+  }
+  .badge-blue { @apply badge bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm; }
+  .badge-emerald { @apply badge bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-sm; }
+  .badge-rose { @apply badge bg-rose-500/10 text-rose-500 border-rose-500/20 shadow-sm; }
+  .badge-amber { @apply badge bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-sm; }
+
+  /* Typography Design */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700;
+  }
+  .dark .text-gradient {
+    @apply from-blue-400 via-indigo-400 to-blue-300;
+  }
+
+  .font-serif {
+    font-family: 'Playfair Display', serif;
+  }
+
+  /* Fluid Custom Scrollbar */
+  .custom-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--theme-border);
+    @apply rounded-full hover:bg-blue-500/50 transition-colors;
+  }
+}
+
+/* Interaction States */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.animate-shake { animation: shake 0.4s ease-in-out infinite; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+.perspective-1000 { perspective: 1000px; }
+.card-3d { transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); transform-style: preserve-3d; }
+.card-3d:hover { transform: translateZ(30px) rotateX(4deg) rotateY(-4deg); }
+
+.skeleton {
+  @apply rounded-3xl animate-pulse;
+  background-color: var(--theme-border);
+}

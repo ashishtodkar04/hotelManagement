@@ -1,0 +1,1208 @@
+import { useEffect, useState, useCallback } from 'react';
+import { Navigate, Link } from 'react-router-dom';
+import useStore from '../../store/useStore';
+import api from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { useHotel } from '../../hooks/useHotel';
+
+import {
+  LayoutDashboard,
+  ChefHat,
+  RefreshCw,
+  History,
+  Utensils,
+  TrendingUp,
+  Activity,
+  Wifi,
+  WifiOff,
+  Server,
+  Zap,
+  Sparkles,
+  CreditCard,
+  ShieldCheck,
+  Package,
+  MessageSquare,
+  UserPlus,
+  Search,
+  SearchX,
+  X,
+  Shield,
+  Trash2
+} from 'lucide-react';
+
+
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar
+} from 'recharts';
+
+import socket from '../../services/socket';
+
+const statusClass = (s) =>
+({
+  pending: 'badge-amber',
+  confirmed: 'badge-blue',
+  seated: 'badge-blue',
+  awaiting_final_payment: 'badge-amber',
+  completed: 'badge-emerald',
+  cancelled: 'badge-rose',
+  unmatched: 'badge-rose'
+}[s] || 'badge-blue');
+
+export default function AdminDashboard() {
+  const { isAdmin, isAdminLoading } = useStore();
+  const { theme } = useTheme();
+  const { lang, setLang, t } = useLanguage();
+  const { name: HOTEL_NAME } = useHotel();
+
+  const safeParse = (key, fallback = []) => {
+    try {
+      const data = localStorage.getItem(key);
+      return data && data !== 'undefined' ? JSON.parse(data) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const [tables, setTables] = useState(() => safeParse('admin_tables'));
+  const [bookings, setBookings] = useState(() => safeParse('admin_bookings'));
+  const [payments, setPayments] = useState(() => safeParse('admin_payments'));
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [monitorStatus, setMonitorStatus] = useState({ active: false, serverIp: '...' });
+  const [staff, setStaff] = useState([]);
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffSalary, setNewStaffSalary] = useState('');
+  const [statsData, setStatsData] = useState({
+
+    dailyRevenue: [],
+    popularDishes: [],
+    todayStats: {
+      onlineRevenue: 0,
+      cashRevenue: 0,
+      walkInCount: 0,
+      onlineBookingCount: 0
+    },
+    auditData: []
+  });
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const installApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') setDeferredPrompt(null);
+  };
+
+  const fetchMonitorStatus = async () => {
+    try {
+      const res = await api.get('/api/monitor-status');
+      setMonitorStatus(res.data || { active: false, serverIp: '...' });
+    } catch {
+      setMonitorStatus(prev => ({ ...prev, active: false }));
+    }
+  };
+
+  const fetchData = useCallback(
+    async (silent = false) => {
+      if (!silent) setRefreshing(true);
+      try {
+        const [tr, br, sr, pr, str] = await Promise.all([
+          api.get('/api/admin/tables'),
+          api.get('/api/admin/bookings'),
+          api.get('/api/admin/stats'),
+          api.get('/api/admin/payments'),
+          api.get('/api/admin/staff')
+        ]);
+
+        setTables(tr.data?.tables || []);
+        setBookings(br.data?.bookings || []);
+        setPayments(pr.data?.payments || []);
+        setStaff(str.data?.staff || []);
+        setStatsData({
+          dailyRevenue: sr.data?.dailyRevenue || [],
+          popularDishes: sr.data?.popularDishes || [],
+          todayStats: sr.data?.todayStats || {
+            onlineRevenue: 0,
+            cashRevenue: 0,
+            walkInCount: 0,
+            onlineBookingCount: 0
+          },
+          auditData: [] // To be fetched below
+        });
+
+        const aur = await api.get('/api/admin/stats/monthly-audit');
+        if (aur.data.success) {
+          // Merge revenue and costs by month
+          const months = [...new Set([...aur.data.revenue.map(r => r.month), ...aur.data.costs.map(c => c.month)])].sort();
+          const merged = months.map(m => {
+            const rev = aur.data.revenue.find(r => r.month === m) || {};
+            const cos = aur.data.costs.find(c => c.month === m) || {};
+            const totalRev = Number(rev.total_revenue || 0);
+            const totalCos = Number(cos.total_cost || 0);
+            return {
+              month: m,
+              revenue: totalRev,
+              walkin_revenue: Number(rev.walkin_revenue || 0),
+              online_revenue: Number(rev.online_revenue || 0),
+              bookings: Number(rev.total_bookings || 0),
+              cost: totalCos,
+              grocery_cost: Number(cos.grocery_cost || 0),
+              commodity_cost: Number(cos.commodity_cost || 0),
+              utility_cost: Number(cos.utility_cost || 0),
+              staff_cost: Number(cos.staff_cost || 0),
+              profit: totalRev - totalCos,
+
+              margin: totalRev > 0 ? (((totalRev - totalCos) / totalRev) * 100).toFixed(1) : 0
+            };
+          });
+          setStatsData(prev => ({ ...prev, auditData: merged }));
+        }
+
+        localStorage.setItem('admin_tables', JSON.stringify(tr.data?.tables || []));
+        localStorage.setItem('admin_bookings', JSON.stringify(br.data?.bookings || []));
+        localStorage.setItem('admin_payments', JSON.stringify(pr.data?.payments || []));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const initialFetchTimer = setTimeout(() => {
+      fetchData();
+      fetchMonitorStatus();
+    }, 0);
+    const monitorInterval = setInterval(fetchMonitorStatus, 15000);
+    const dataInterval    = setInterval(() => fetchData(true), 15000);
+    socket.connect();
+    socket.emit('join_admin');
+    const handleBookingUpdate   = () => fetchData(true);
+    const handleDishUpdate      = () => fetchData(true);
+    const handleWarehouseUpdate = () => fetchData(true);
+    const handleTableUpdate     = () => fetchData(true);
+    socket.on('booking_update',   handleBookingUpdate);
+    socket.on('dish_update',      handleDishUpdate);
+    socket.on('warehouse_update', handleWarehouseUpdate);
+    socket.on('table_update',     handleTableUpdate);
+    socket.on('monitor_update', (data) => data && setMonitorStatus(prev => ({ ...prev, ...data })));
+    return () => {
+      clearTimeout(initialFetchTimer);
+      clearInterval(monitorInterval);
+      clearInterval(dataInterval);
+      socket.off('booking_update',   handleBookingUpdate);
+      socket.off('dish_update',      handleDishUpdate);
+      socket.off('warehouse_update', handleWarehouseUpdate);
+      socket.off('table_update',     handleTableUpdate);
+      socket.off('monitor_update');
+      socket.disconnect();
+    };
+  }, [fetchData, isAdmin]);
+
+  const updateTable = async (id, status) => {
+    try {
+      await api.post('/api/admin/update-table', { id, status });
+      fetchData(true);
+    } catch { alert('Authorization Sequence Interrupted'); }
+  };
+
+  const updateBooking = async (bookingId, status) => {
+    try {
+      await api.post('/api/admin/update-status', { bookingId, status });
+      fetchData(true);
+    } catch (err) { alert(err.response?.data?.error || 'Failed to authorize state change'); }
+  };
+
+  const verifyPayment = async (bookingId, status) => {
+    try {
+      await api.post('/api/admin/verify-payment', { bookingId, status });
+      fetchData(true);
+    } catch { alert('Identity Verification Error'); }
+  };
+
+  const checkout = async (bookingId, discount) => {
+    try {
+      await api.post('/api/admin/checkout', { bookingId, discount });
+      fetchData(true);
+    } catch (err) { 
+      const msg = err.response?.data?.error || 'Checkout Authorization Failed';
+      alert(msg); 
+    }
+  };
+
+  const addTable = async () => {
+    const name = prompt('Enter Table Name (e.g. 10):');
+    const cap = prompt('Enter Capacity (e.g. 4):');
+    if (!name || !cap) return;
+    try {
+      await api.post('/api/admin/tables', { table_name: name, capacity: cap, status: 'available' });
+      fetchData(true);
+    } catch { alert('Failed to manifest table'); }
+  };
+
+  const editTable = async (t) => {
+    const name = prompt('New Table Name:', t.table_name);
+    const cap = prompt('New Capacity:', t.capacity);
+    if (!name || !cap) return;
+    try {
+      await api.put(`/api/admin/tables/${t.id}`, { table_name: name, capacity: cap });
+      fetchData(true);
+    } catch { alert('Failed to update table metadata'); }
+  };
+
+  const deleteTable = (id) => {
+    setConfirmAction({
+      title: 'Erase Floor Table?',
+      message: 'Are you sure you want to permanently remove this physical table placement from the floor map? Reservation linkages may be affected.',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/admin/tables/${id}`);
+          fetchData(true);
+        } catch (err) { 
+          alert(err.response?.data?.error || 'Failed to erase table'); 
+        }
+      }
+    });
+  };
+
+  const addStaff = async (e) => {
+    e.preventDefault();
+    if (!newStaffName || !newStaffSalary) return;
+    try {
+      await api.post('/api/admin/staff', { name: newStaffName, salary: newStaffSalary });
+      setNewStaffName('');
+      setNewStaffSalary('');
+      fetchData(true);
+    } catch { alert('Failed to generate staff identity'); }
+  };
+
+
+  const deleteStaff = (id) => {
+    setConfirmAction({
+      title: 'Revoke Staff Access?',
+      message: 'Are you sure you want to permanently revoke this staff identity and active portal authentication credentials? This action is immediate.',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/admin/staff/${id}`);
+          fetchData(true);
+        } catch { 
+          alert('Failed to revoke identity'); 
+        }
+      }
+    });
+  };
+
+  const handleCustomerSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery) return;
+    setSearchLoading(true);
+    try {
+      const res = await api.get(`/api/admin/search-customer?query=${searchQuery}`);
+      if (res.data.success) {
+        setSearchResults(res.data);
+      }
+    } catch {
+      alert('Intelligence sequence interrupted.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+
+  if (isAdminLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[var(--theme-bg)]">
+      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!isAdmin) return <Navigate to="/admin/login" />;
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[var(--theme-bg)]">
+      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  const stats = [
+    { label: t('today_bookings'), value: bookings.length || 0, color: 'text-blue-500', icon: TrendingUp },
+    { label: t('walkins_online'), value: `${statsData.todayStats.walkInCount} / ${statsData.todayStats.onlineBookingCount}`, color: 'text-indigo-500', icon: Activity },
+    { label: t('total_revenue'), value: `₹${(Number(statsData.todayStats.onlineRevenue) + Number(statsData.todayStats.cashRevenue)).toFixed(0)}`, color: 'text-emerald-500', icon: LayoutDashboard },
+    { label: t('monitor_sync'), value: monitorStatus.active ? t('active') : t('offline'), color: monitorStatus.active ? 'text-emerald-500' : 'text-rose-500', icon: RefreshCw }
+  ];
+
+  return (
+    <div className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] transition-colors duration-500 pb-20">
+      <header className="sticky top-0 z-[60] bg-[var(--theme-panel)] backdrop-blur-2xl border-b border-[var(--theme-border)] px-4 md:px-8 py-4 md:py-6 shadow-xl">
+        <div className="max-w-[1800px] mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-2xl md:rounded-[2rem] flex items-center justify-center text-white shadow-2xl shadow-blue-100">
+              <LayoutDashboard className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+            <div>
+              <h1 className="text-xl md:text-3xl font-black tracking-tighter">{HOTEL_NAME} <span className="text-blue-600">Executive</span></h1>
+              <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] md:tracking-[0.4em] mt-1">Namaste! {t('admin_terminal')}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-8">
+            <div className="hidden lg:flex items-center gap-4 bg-[var(--theme-accent)] px-6 py-2.5 rounded-2xl border border-[var(--theme-border)] shadow-sm">
+              <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${monitorStatus.active ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {monitorStatus.active ? <Wifi size={14} className="animate-pulse" /> : <WifiOff size={14} />}
+                {monitorStatus.active ? 'Sovereign Online' : 'Network Interrupted'}
+              </div>
+              <div className="h-4 w-px bg-[var(--theme-border)]" />
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <Server size={14} />
+                Terminal: <span className="text-[var(--theme-text)]">{monitorStatus.serverIp}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 bg-[var(--theme-border)] p-1.5 rounded-2xl">
+              {['en', 'hi', 'mr'].map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${
+                    lang === l ? 'bg-blue-600 text-white shadow-lg scale-105' : 'text-slate-400 hover:text-blue-600'
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-right hidden md:block">
+              <p className="text-lg font-black tracking-tight font-serif">{currentTime.toLocaleTimeString()}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {currentTime.toLocaleDateString(lang === 'en' ? 'en-GB' : lang === 'hi' ? 'hi-IN' : 'mr-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+            {deferredPrompt && (
+              <button
+                onClick={installApp}
+                className="hidden xl:flex items-center gap-3 px-6 py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all animate-bounce"
+              >
+                <Sparkles size={14} /> Install Web App
+              </button>
+            )}
+            <button
+              onClick={() => fetchData()}
+              className="w-12 h-12 bg-[var(--theme-panel)] border border-[var(--theme-border)] hover:border-blue-600 hover:text-blue-600 rounded-2xl flex items-center justify-center transition-all active:scale-90 shadow-xl"
+            >
+              <RefreshCw size={24} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-[1800px] mx-auto p-4 md:p-8 lg:p-12 space-y-12">
+        {/* --- SOVEREIGN INTELLIGENCE SEARCH --- */}
+        <div className="glass p-8 md:p-12 border border-blue-600/10 bg-blue-600/[0.02] shadow-2xl relative overflow-hidden animate-fade-in">
+          <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
+            <Search size={150} />
+          </div>
+          <div className="flex flex-col md:flex-row items-center gap-12 relative z-10">
+            <div className="flex-1">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.6em] text-blue-600 mb-4 flex items-center gap-4">
+                <Sparkles size={14} /> Sovereign Intelligence Suite
+              </h2>
+              <p className="text-3xl font-black tracking-tighter mb-8 italic font-serif">Audit <span className="text-blue-600">Sovereign Identity</span> or <span className="text-blue-600">Booking Record</span></p>
+              
+              <form onSubmit={handleCustomerSearch} className="flex gap-4">
+                <div className="relative flex-1">
+                  <Search size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Enter ID, Booking Ref, Email, or Contact Link..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full bg-[var(--theme-panel)] border-2 border-[var(--theme-border)] rounded-[2rem] py-6 pl-20 pr-8 font-black text-sm outline-none focus:border-blue-600 transition-all shadow-inner"
+                  />
+                </div>
+                <button type="submit" disabled={searchLoading} className="btn-primary px-12 rounded-[2rem] shadow-2xl">
+                  {searchLoading ? <RefreshCw className="animate-spin" /> : 'EXECUTE AUDIT'}
+                </button>
+                {searchResults && (
+                  <button type="button" onClick={() => { setSearchResults(null); setSearchQuery(''); }} className="btn-secondary px-6 rounded-[2rem] border-rose-500/20 text-rose-500">
+                    <SearchX size={20} />
+                  </button>
+                )}
+              </form>
+            </div>
+          </div>
+
+          {searchResults && (
+            <div className="mt-16 pt-16 border-t border-[var(--theme-border)] animate-fade-in space-y-12">
+              {/* Results Grid */}
+              <div className="grid lg:grid-cols-2 gap-12">
+                {/* User Results */}
+                <div className="space-y-8">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-400 ml-4">Discovered Identities ({searchResults.users.length})</h3>
+                  {searchResults.users.length === 0 ? (
+                    <div className="glass p-12 text-center opacity-40">No matching sovereign identities found.</div>
+                  ) : (
+                    searchResults.users.map(u => (
+                      <div key={u.id} className="glass p-10 border-blue-600/10 hover:border-blue-600 transition-all bg-[var(--theme-panel)]">
+                        <div className="flex justify-between items-start mb-6">
+                           <div className="text-2xl font-black tracking-tighter">{u.name} <span className="text-blue-600 text-sm">#{u.id}</span></div>
+                           <span className="text-[10px] font-black bg-blue-600/10 text-blue-600 px-4 py-1.5 rounded-full uppercase tracking-widest">Registered User</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <div>
+                            <p className="mb-1 opacity-50">Email Access</p>
+                            <p className="text-[var(--theme-text)] text-sm lowercase">{u.email}</p>
+                          </div>
+                          <div>
+                            <p className="mb-1 opacity-50">Contact Link</p>
+                            <p className="text-[var(--theme-text)] text-sm">{u.phone}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Booking Results */}
+                <div className="space-y-8">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-400 ml-4">Historical Transmissions ({searchResults.bookings.length})</h3>
+                  <div className="space-y-6 max-h-[500px] overflow-y-auto pr-4 custom-scroll">
+                    {searchResults.bookings.length === 0 ? (
+                      <div className="glass p-12 text-center opacity-40">No historical records found for this query.</div>
+                    ) : (
+                      searchResults.bookings.map(b => (
+                        <div key={b.id} className="glass p-8 bg-[var(--theme-accent)] border-[var(--theme-border)]">
+                          <div className="flex justify-between items-center mb-6">
+                            <div className="text-lg font-black font-serif italic text-blue-600">Ref: {b.booking_ref} <span className="text-xs opacity-50">#{b.id}</span></div>
+                            <span className={statusClass(b.status)}>{b.status.toUpperCase()}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-6 text-[9px] font-black uppercase tracking-widest">
+                            <div>
+                              <p className="text-slate-400 mb-1">Temporal</p>
+                              <p className="text-[var(--theme-text)]">{new Date(b.booking_date).toLocaleDateString()}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400 mb-1">Placement</p>
+                              <p className="text-[var(--theme-text)]">Table {b.table_number}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400 mb-1">Yield</p>
+                              <p className="text-emerald-500 font-bold">₹{Number(b.bill_amount).toFixed(0)}</p>
+                            </div>
+                          </div>
+                          
+                          {/* Order sub-list for this booking */}
+                          <div className="mt-6 pt-4 border-t border-[var(--theme-border)] space-y-2">
+                             {searchResults.orders.filter(o => o.booking_id === b.id).map(o => (
+                               <div key={o.id} className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-500">
+                                 <span>{o.quantity}x {o.dish_name}</span>
+                                 <span>₹{o.total_price}</span>
+                               </div>
+                             ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!monitorStatus.active && (
+          <div className="glass p-12 bg-rose-500/5 border-rose-500/20 shadow-2xl shadow-rose-500/5 relative overflow-hidden animate-fade-in">
+            <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+              <WifiOff size={200} />
+            </div>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-12 relative z-10">
+              <div className="flex items-center gap-10">
+                <div className="w-24 h-24 bg-rose-500 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-rose-500/30">
+                  <WifiOff size={44} />
+                </div>
+                <div className="space-y-4">
+                  <p className="text-2xl font-black text-rose-500 uppercase tracking-tighter">Synchronization Protocol Offline</p>
+                  <p className="text-sm font-bold text-slate-400 max-w-xl leading-relaxed">
+                    Namaste! The payment monitor has lost its bridge. To restore <span className="text-rose-500 font-black">Live Verification</span>, please perform the following:
+                  </p>
+                  <div className="flex flex-wrap gap-6 mt-6">
+                    <div className="bg-[var(--theme-accent)] px-6 py-4 rounded-2xl border border-[var(--theme-border)]">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Target Terminal IP</p>
+                      <p className="text-xl font-black text-blue-600 font-mono tracking-widest">{monitorStatus.serverIp}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-300">
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white">!</div>
+                      Audit {HOTEL_NAME} PRO App State
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-4 w-full md:w-80">
+                <button onClick={() => fetchData()} className="btn-primary py-6 rounded-[1.5rem] shadow-xl">RETRY SYNCHRONIZATION</button>
+                <Link to="/admin/pos" className="btn-secondary py-6 text-center rounded-[1.5rem] border-rose-500/20 hover:border-rose-500 hover:text-rose-500">INITIATE MANUAL ENTRY</Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {monitorStatus.active && (
+          <div className="glass p-8 bg-blue-600/5 border-blue-600/10 flex items-center justify-between animate-fade-in">
+            <div className="flex items-center gap-5">
+              <div className="w-12 h-12 bg-blue-600/10 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
+                <Zap size={24} />
+              </div>
+              <p className="text-base font-black text-[var(--theme-text)] tracking-tight">Sovereign Connection Established. <span className="text-blue-600">Monitoring Active.</span></p>
+            </div>
+            <Sparkles size={20} className="text-blue-600/30" />
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+          {stats.map((s, i) => (
+            <div key={i} className="glass p-6 md:p-12 group hover:shadow-2xl hover:-translate-y-2 transition-all duration-700 relative overflow-hidden border border-blue-600/5">
+              <div className="absolute top-0 right-0 p-4 md:p-8 opacity-5 group-hover:scale-125 transition-transform duration-700 group-hover:text-blue-600">
+                <s.icon size={statsData.isMobile ? 40 : 80} />
+              </div>
+              <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-slate-400 mb-4 md:mb-8">{s.label}</p>
+              <div className={`text-2xl md:text-5xl font-black tracking-tighter font-serif ${s.color}`}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* --- PROFESSIONAL TRANSMISSION STACK (REAL-TIME QUEUE) --- */}
+        {payments.filter(p => p.status === 'pending').length > 0 && (
+          <div className="space-y-10 animate-fade-in mb-24">
+            <div className="flex flex-col md:flex-row md:items-center justify-between px-4 gap-6">
+              <div>
+                <h2 className="text-[11px] font-black text-blue-600 uppercase tracking-[0.6em] mb-3 flex items-center gap-3">
+                  <Activity size={18} className="animate-pulse" /> Transmission Stack
+                </h2>
+                <div className="text-3xl font-black tracking-tighter text-[var(--theme-text)]">
+                  Live <span className="text-blue-600 underline decoration-blue-600/30 underline-offset-8">Payment Tunnel</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="bg-blue-600/10 border border-blue-600/20 py-3 px-8 rounded-2xl text-[10px] font-black uppercase tracking-widest text-blue-600 flex items-center gap-4 shadow-2xl shadow-blue-600/10">
+                   <div className="relative flex h-3 w-3">
+                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                     <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                   </div>
+                   {payments.filter(p => p.status === 'pending').length} ACTIVE REQUESTS
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+              {payments.filter(p => p.status === 'pending').map(p => {
+                const waitTime = Math.round((currentTime.getTime() - new Date(p.created_at).getTime()) / 60000);
+                return (
+                  <div key={p.id} className="glass p-10 border-blue-500/10 hover:border-blue-500/40 transition-all bg-[var(--theme-panel)] relative overflow-hidden group shadow-2xl hover:shadow-blue-600/5">
+                    <div className="absolute -right-6 -top-6 opacity-[0.03] group-hover:opacity-[0.08] group-hover:scale-125 transition-all duration-1000">
+                      <Zap size={160} />
+                    </div>
+                    
+                    <div className="flex justify-between items-start mb-8">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                           <span className="px-3 py-1 bg-blue-600/10 text-blue-600 text-[8px] font-black rounded-lg uppercase tracking-tighter">REF: {p.booking_ref}</span>
+                           <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{waitTime > 0 ? `${waitTime}m ago` : 'just now'}</span>
+                        </div>
+                        <div className="text-2xl font-black tracking-tight font-serif italic text-[var(--theme-text)]">{p.user_name || 'Guest'}</div>
+                      </div>
+                      <div className="text-right">
+                         <div className="text-3xl font-black text-blue-600 font-serif tracking-tighter">₹{Number(p.amount).toLocaleString()}</div>
+                         <div className="flex items-center justify-end gap-2 mt-1">
+                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                           <div className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{p.method}</div>
+                         </div>
+                      </div>
+                    </div>
+                    
+                    {p.transaction_id && (
+                      <div className="mb-8 p-4 bg-[var(--theme-bg)] rounded-2xl border border-[var(--theme-border)]">
+                        <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Transaction ID / UTR</div>
+                        <div className="text-[11px] font-black text-blue-600 tracking-widest break-all">{p.transaction_id}</div>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-4 pt-8 border-t border-[var(--theme-border)]">
+                      <button 
+                        onClick={() => verifyPayment(p.booking_id, 'approve')}
+                        className="flex-1 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest py-4 rounded-2xl hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 active:scale-95"
+                      >
+                        APPROVE
+                      </button>
+                      <button 
+                        onClick={() => verifyPayment(p.booking_id, 'reject')}
+                        className="flex-1 bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] font-black uppercase tracking-widest py-4 rounded-2xl hover:bg-rose-500 hover:text-white transition-all active:scale-95"
+                      >
+                        REJECT
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-3 md:gap-8">
+          {[
+            { to: "/admin/history", icon: History, label: "Archives" },
+            { to: "/admin/pos", icon: CreditCard, label: "Walk-in Terminal" },
+            { to: "/admin/menu", icon: Utensils, label: "Culinary Architect" },
+            { to: "/admin/warehouse", icon: Package, label: "Warehouse Assets" },
+            { to: "/admin/chef", icon: ChefHat, label: "Kitchen Feed" },
+            { to: "/admin/chat", icon: MessageSquare, label: "Concierge Chat" },
+          ].map(link => (
+            <Link key={link.to} to={link.to} className="bg-[var(--theme-panel)] border border-[var(--theme-border)] px-6 md:px-12 py-4 md:py-6 rounded-2xl md:rounded-3xl flex items-center gap-3 md:gap-5 hover:border-blue-600 hover:text-blue-600 transition-all font-black text-[9px] md:text-[11px] uppercase tracking-[0.2em] shadow-xl hover:-translate-y-1">
+              <link.icon size={statsData.isMobile ? 18 : 22} /> {link.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 glass p-12 h-[550px] border border-blue-600/5">
+            <div className="flex items-center justify-between mb-16">
+              <div>
+                <h2 className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 mb-2">Revenue Transmission</h2>
+                <p className="text-xl font-black tracking-tight">Sovereign Yield Trajectory</p>
+              </div>
+              <div className="flex gap-8">
+                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest"><div className="w-3 h-3 rounded-full bg-blue-600 shadow-lg shadow-blue-500/50" /> Aggregate Revenue</div>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={statsData.dailyRevenue}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#1e293b' : '#f1f5f9'} />
+                <XAxis dataKey="booking_date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 800 }} dy={20} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 800 }} dx={-20} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+                    borderRadius: '32px',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    boxShadow: '0 40px 80px -12px rgba(0,0,0,0.6)',
+                    padding: '24px'
+                  }}
+                  itemStyle={{ color: '#2563eb', fontWeight: 900, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.1em' }}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={6} fillOpacity={1} fill="url(#colorRev)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="lg:col-span-1 space-y-10">
+            <div className="flex items-center justify-between px-4">
+              <div>
+                <h2 className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400">Floor Matrix</h2>
+                <button onClick={addTable} className="text-[9px] font-black text-blue-600 uppercase tracking-widest mt-1 hover:underline">+ Manifest Table</button>
+              </div>
+              <div className="flex items-center gap-2 text-[9px] font-black text-blue-600 uppercase tracking-widest"><ShieldCheck size={12} /> Live Audit</div>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-2 gap-6">
+              {tables.map((t_item) => (
+                <button
+                  key={t_item.id}
+                  onClick={() => updateTable(t_item.id, t_item.status === 'available' ? 'occupied' : 'available')}
+                  className={`p-8 rounded-[3rem] border-2 transition-all active:scale-95 text-center relative overflow-hidden group shadow-xl ${t_item.status === 'occupied'
+                      ? 'bg-rose-500/5 border-rose-500/40 text-rose-500 shadow-rose-500/5'
+                      : t_item.status === 'reserved'
+                        ? 'bg-amber-500/5 border-amber-500/40 text-amber-500 shadow-amber-500/5'
+                        : 'bg-[var(--theme-panel)] border-[var(--theme-border)] text-slate-300 hover:border-blue-600 hover:text-blue-600'
+                    }`}
+                >
+                  <div className="text-2xl font-black mb-2 font-serif tracking-tighter">T{t_item.table_name}</div>
+                  <div className="text-[9px] font-black uppercase tracking-[0.3em] opacity-60 mb-4">{t_item.status === 'available' ? 'VACANT' : t_item.status === 'occupied' ? 'ENGAGED' : 'HELD'}</div>
+                  <div className="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); editTable(t_item); }} className="text-[8px] font-black uppercase text-blue-600">Edit</button>
+                    <button onClick={(e) => { e.stopPropagation(); deleteTable(t_item.id); }} className="text-[8px] font-black uppercase text-rose-500">Erase</button>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* --- PROFESSIONAL FINANCIAL SUITE --- */}
+        <div className="space-y-12">
+          {/* A. Monthly Financial Audit Graph (Secondary) */}
+          <div className="glass p-12 h-[450px] border border-blue-600/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-12 opacity-[0.02] pointer-events-none">
+              <TrendingUp size={200} />
+            </div>
+            <div className="flex items-center justify-between mb-16 relative z-10">
+              <div>
+                <h2 className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 mb-2">Trend Analysis</h2>
+                <p className="text-xl font-black tracking-tight text-[var(--theme-text)]">Revenue & Expenditure Flux</p>
+              </div>
+              <div className="flex gap-8">
+                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest"><div className="w-3 h-3 rounded-full bg-blue-600" /> Revenue Stream</div>
+                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest"><div className="w-3 h-3 rounded-full bg-rose-500" /> Operating Liability</div>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height="70%">
+              <BarChart data={statsData.auditData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#1e293b' : '#f1f5f9'} />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 800 }} dy={20} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 800 }} dx={-20} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+                    borderRadius: '24px',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    boxShadow: '0 40px 80px -12px rgba(0,0,0,0.6)',
+                    padding: '20px'
+                  }}
+                  cursor={{ fill: 'rgba(37, 99, 235, 0.05)' }}
+                />
+                <Bar dataKey="revenue" fill="#2563eb" radius={[6, 6, 0, 0]} name="REVENUE" />
+                <Bar dataKey="cost" fill="#f43f5e" radius={[6, 6, 0, 0]} name="COSTS" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* B. The Sovereign Audit Ledger (Primary - Numbers) */}
+          <div className="glass overflow-hidden shadow-2xl relative border-2 border-emerald-600/10">
+            <div className="px-12 py-10 border-b border-[var(--theme-border)] flex items-center justify-between bg-emerald-600/[0.03]">
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-emerald-600 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-emerald-600/20">
+                  <ShieldCheck size={32} />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black text-[var(--theme-text)] tracking-tighter">Sovereign Audit Ledger</h2>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Full Fiscal Transparency / Profit & Loss Protocol</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-8">
+                 <div className="text-right">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Fiscal Status</p>
+                    <div className="flex items-center gap-3 text-emerald-500 font-black text-sm uppercase tracking-widest">
+                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Certified
+                    </div>
+                 </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto custom-scroll hidden md:block">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-[0.4em] text-slate-400 font-black border-b border-[var(--theme-border)] bg-slate-50/20 dark:bg-slate-900/10">
+                    <th className="px-12 py-10">Temporal Cycle</th>
+                    <th className="px-12 py-10">Inflow Dynamics (Revenue)</th>
+                    <th className="px-12 py-10">Outflow Dynamics (Costs)</th>
+                    <th className="px-12 py-10 text-right">Net Yield (Profit)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--theme-border)]">
+                  {statsData.auditData.map((a) => (
+                    <tr key={a.month} className="hover:bg-blue-600/[0.02] transition-all group">
+                      <td className="px-12 py-12">
+                        <div className="text-2xl font-black font-serif italic text-blue-600 tracking-tight">
+                          {new Date(a.month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                        </div>
+                        <div className="flex items-center gap-3 mt-2">
+                           <Activity size={10} className="text-slate-300" />
+                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{a.bookings} SESSIONS ARCHIVED</span>
+                        </div>
+                      </td>
+                      <td className="px-12 py-12">
+                         <div className="space-y-3">
+                            <div className="flex justify-between items-center gap-8">
+                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aggregate Inflow</span>
+                               <span className="text-xl font-black text-[var(--theme-text)] font-serif tracking-tighter">₹{a.revenue.toLocaleString()}</span>
+                            </div>
+                            <div className="h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                               <div className="h-full bg-blue-600" style={{ width: `${(a.online_revenue / a.revenue) * 100}%` }} title="Online Share" />
+                            </div>
+                            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
+                               <span>Walk-in: ₹{a.walkin_revenue.toFixed(0)}</span>
+                               <span>Online: ₹{a.online_revenue.toFixed(0)}</span>
+                            </div>
+                         </div>
+                      </td>
+                      <td className="px-12 py-12">
+                         <div className="space-y-3">
+                            <div className="flex justify-between items-center gap-8">
+                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Operational Outflow</span>
+                               <span className="text-xl font-black text-rose-500 font-serif tracking-tighter">₹{a.cost.toLocaleString()}</span>
+                            </div>
+                            <div className="flex gap-1 h-1">
+                               <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(a.grocery_cost / a.cost) * 100}%` }} title="Grocery" />
+                               <div className="h-full bg-orange-500 rounded-full" style={{ width: `${(a.commodity_cost / a.cost) * 100}%` }} title="Commodity" />
+                               <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(a.utility_cost / a.cost) * 100}%` }} title="Utility" />
+                            </div>
+                            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
+                               <span>GRC: ₹{a.grocery_cost.toFixed(0)}</span>
+                               <span>CMD: ₹{a.commodity_cost.toFixed(0)}</span>
+                               <span>UTL: ₹{a.utility_cost.toFixed(0)}</span>
+                               <span>STF: ₹{a.staff_cost.toFixed(0)}</span>
+                            </div>
+
+                         </div>
+                      </td>
+                      <td className="px-12 py-12 text-right">
+                         <div className={`text-4xl font-black font-serif tracking-tighter ${a.profit >= 0 ? 'text-emerald-500' : 'text-rose-600'}`}>
+                           {a.profit < 0 ? '-' : '+'}₹{Math.abs(a.profit).toLocaleString()}
+                         </div>
+                         <div className="flex items-center justify-end gap-3 mt-3">
+                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl border ${a.profit >= 0 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 shadow-lg shadow-emerald-500/10' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+                              {a.margin}% Yield
+                            </span>
+                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Ledger Cards */}
+            <div className="md:hidden divide-y divide-[var(--theme-border)]">
+              {statsData.auditData.map((a) => (
+                <div key={a.month} className="p-8 space-y-8 bg-white/5">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="text-2xl font-black font-serif italic text-blue-600 tracking-tight">
+                        {new Date(a.month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                      </div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{a.bookings} SESSIONS ARCHIVED</p>
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl border ${a.profit >= 0 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+                      {a.margin}% Yield
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Inflow</p>
+                        <p className="text-xl font-black text-[var(--theme-text)] font-serif tracking-tighter">₹{a.revenue.toLocaleString()}</p>
+                      </div>
+                      <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest space-y-1">
+                        <div className="flex justify-between"><span>WALK:</span> <span>₹{a.walkin_revenue.toFixed(0)}</span></div>
+                        <div className="flex justify-between"><span>ONLN:</span> <span>₹{a.online_revenue.toFixed(0)}</span></div>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Outflow</p>
+                        <p className="text-xl font-black text-rose-500 font-serif tracking-tighter">₹{a.cost.toLocaleString()}</p>
+                      </div>
+                      <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest space-y-1">
+                        <div className="flex justify-between"><span>GRC:</span> <span>₹{a.grocery_cost.toFixed(0)}</span></div>
+                        <div className="flex justify-between"><span>STF:</span> <span>₹{a.staff_cost.toFixed(0)}</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-[var(--theme-border)] flex justify-between items-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Net Yield</p>
+                    <p className={`text-3xl font-black font-serif tracking-tighter ${a.profit >= 0 ? 'text-emerald-500' : 'text-rose-600'}`}>
+                      {a.profit < 0 ? '-' : '+'}₹{Math.abs(a.profit).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            
+            <div className="p-8 md:p-16 border-t border-[var(--theme-border)] bg-slate-50/50 dark:bg-slate-900/50 flex flex-col md:flex-row justify-between items-center gap-8 md:gap-12">
+               <div className="grid grid-cols-2 gap-8 md:gap-16 w-full md:w-auto">
+                  <div className="relative pl-6 md:pl-10 border-l-4 border-blue-600">
+                     <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-2 md:mb-3">Gross Revenue</p>
+                     <p className="text-2xl md:text-4xl font-black text-[var(--theme-text)] font-serif tracking-tighter">₹{(statsData.auditData || []).reduce((s, a) => s + a.revenue, 0).toLocaleString()}</p>
+                  </div>
+                  <div className="relative pl-6 md:pl-10 border-l-4 border-rose-500">
+                     <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-2 md:mb-3">Gross Costs</p>
+                     <p className="text-2xl md:text-4xl font-black text-rose-500 font-serif tracking-tighter">₹{(statsData.auditData || []).reduce((s, a) => s + a.cost, 0).toLocaleString()}</p>
+                  </div>
+               </div>
+               <div className="text-center md:text-right bg-emerald-500/5 p-8 md:p-10 rounded-[2rem] md:rounded-[3rem] border border-emerald-500/10 w-full md:w-auto shadow-2xl">
+                  <p className="text-[9px] md:text-[11px] font-black text-emerald-600 uppercase tracking-[0.5em] mb-3 md:mb-4 flex items-center justify-center md:justify-end gap-3 md:gap-4">
+                     <Sparkles size={16} /> ACCUMULATED NET PROFIT
+                  </p>
+                  <p className="text-4xl md:text-7xl font-black text-emerald-500 font-serif tracking-tighter leading-none">
+                    ₹{(statsData.auditData || []).reduce((s, a) => s + a.profit, 0).toLocaleString()}
+                  </p>
+               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass overflow-hidden shadow-2xl relative border border-blue-600/5">
+          <div className="px-12 py-10 border-b border-[var(--theme-border)] flex items-center justify-between bg-[var(--theme-accent)]">
+            <div className="flex items-center gap-6">
+              <div className="w-14 h-14 bg-blue-600 text-white rounded-[1.5rem] flex items-center justify-center shadow-xl shadow-blue-600/20">
+                <Activity size={28} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-[var(--theme-text)] tracking-tighter">{t('live_bookings')}</h2>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Live Financial Transmission Ledger</p>
+              </div>
+            </div>
+            <div className={`badge-${monitorStatus.active ? 'blue' : 'rose'} ${monitorStatus.active ? 'animate-pulse' : ''} flex items-center gap-4 py-3 px-8 rounded-2xl`}>
+              <div className={`w-2.5 h-2.5 rounded-full ${monitorStatus.active ? 'bg-blue-500 shadow-lg shadow-blue-500/50' : 'bg-rose-500 shadow-lg shadow-rose-500/50'}`} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">{monitorStatus.active ? 'SYNC ACTIVE' : 'SYNC PAUSED'}</span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto custom-scroll hidden md:block">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-[0.4em] text-slate-400 font-black border-b border-[var(--theme-border)] bg-slate-50/20 dark:bg-slate-900/20">
+                  <th className="px-12 py-10">{t('customer')}</th>
+                  <th className="px-12 py-10">{t('table')}</th>
+                  <th className="px-12 py-10">{t('total_revenue')}</th>
+                  <th className="px-12 py-10 text-right">{t('actions')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--theme-border)]">
+                {bookings.map((b) => {
+                  const billAmount = Number(b.total_payable || 0);
+                  const remainingDue = Number(b.remaining_due || 0);
+                  return (
+                    <tr key={b.id} className="hover:bg-blue-600/[0.02] transition-all group">
+                      <td className="px-12 py-12">
+                        <div className="font-black text-xl mb-1 tracking-tight font-serif italic">{b.user_name}</div>
+                        {b.staff_name && (
+                          <div className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                             <Sparkles size={10} /> Facilitated by: {b.staff_name}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-5">
+                          <span className={statusClass(b.booking_status)}>
+                            {t(b.booking_status).toUpperCase()}
+                          </span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-[var(--theme-accent)] px-3 py-1 rounded-lg border border-[var(--theme-border)]">{b.guests} {t('guests').toUpperCase()}</span>
+                        </div>
+                      </td>
+
+                      <td className="px-12 py-12">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <span>Subtotal:</span>
+                            <span>₹{Number(b.subtotal).toFixed(0)}</span>
+                          </div>
+                          <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-blue-600 pt-2">
+                            <span>{t('bill_amount')}:</span>
+                            <span>₹{billAmount.toFixed(0)}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-12 py-12">
+                        <div className="space-y-2">
+                           <div className={`text-4xl font-black font-serif tracking-tighter ${remainingDue > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                             ₹{remainingDue.toFixed(0)}
+                           </div>
+                           <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">DUE AMOUNT</div>
+                        </div>
+                      </td>
+
+                      <td className="px-12 py-12">
+                        <div className="flex flex-col items-end gap-4">
+                           <select
+                              value={b.booking_status}
+                              onChange={(e) => updateBooking(b.id, e.target.value)}
+                              className="bg-[var(--theme-input)] border border-[var(--theme-border)] text-[var(--theme-text)] text-[10px] font-black uppercase rounded-xl px-4 py-3 outline-none"
+                            >
+                              <option value="pending">{t('pending')}</option>
+                              <option value="confirmed">{t('confirmed')}</option>
+                              <option value="seated">{t('seated')}</option>
+                              <option value="completed">{t('completed')}</option>
+                            </select>
+                            
+                            {b.booking_status === 'seated' && (
+                               <button onClick={() => checkout(b.id, 0)} className="btn-primary py-3 px-6 text-[9px]">AUTHORIZE SETTLEMENT</button>
+                            )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Booking Cards */}
+          <div className="md:hidden divide-y divide-[var(--theme-border)]">
+            {bookings.map((b) => {
+              const remainingDue = Number(b.remaining_due || 0);
+              return (
+                <div key={b.id} className="p-8 space-y-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-black text-xl tracking-tight font-serif italic">{b.user_name}</div>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className={statusClass(b.booking_status)}>{t(b.booking_status).toUpperCase()}</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">T{b.table_number} / {b.guests} G</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                       <p className={`text-2xl font-black font-serif tracking-tighter ${remainingDue > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                         ₹{remainingDue.toFixed(0)}
+                       </p>
+                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">DUE</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <select
+                      value={b.booking_status}
+                      onChange={(e) => updateBooking(b.id, e.target.value)}
+                      className="flex-1 bg-[var(--theme-input)] border border-[var(--theme-border)] text-[var(--theme-text)] text-[9px] font-black uppercase rounded-xl px-4 py-3"
+                    >
+                      <option value="pending">{t('pending')}</option>
+                      <option value="confirmed">{t('confirmed')}</option>
+                      <option value="seated">{t('seated')}</option>
+                      <option value="completed">{t('completed')}</option>
+                    </select>
+                    {b.booking_status === 'seated' && (
+                       <button onClick={() => checkout(b.id, 0)} className="btn-primary py-3 px-4 text-[8px]">SETTLE</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="p-12 border-t border-[var(--theme-border)] text-center">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] opacity-40 flex items-center justify-center gap-4">
+              <Sparkles size={12} className="text-blue-600" /> End of Sovereign Transmission Ledger <Sparkles size={12} className="text-blue-600" />
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-24 space-y-12 animate-fade-in" style={{ animationDelay: '0.6s' }}>
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 px-4 md:px-8">
+            <div>
+              <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.6em] mb-2 flex items-center gap-3">
+                <ShieldCheck size={16} /> Identity Protocol
+              </h2>
+              <div className="text-3xl md:text-4xl font-serif italic font-bold text-[var(--theme-text)] tracking-tighter">Manage <span className="text-blue-600">Operations Team</span></div>
+            </div>
+            
+            <form onSubmit={addStaff} className="flex flex-col sm:flex-row items-center gap-4 bg-[var(--theme-input)] p-3 md:p-2 rounded-3xl md:rounded-[2.5rem] border border-[var(--theme-border)] shadow-2xl w-full lg:w-auto">
+              <input
+                type="text"
+                placeholder="NAME"
+                value={newStaffName}
+                onChange={(e) => setNewStaffName(e.target.value.toUpperCase())}
+                className="bg-transparent border-none rounded-2xl px-6 py-4 text-[11px] font-black w-full sm:w-40 focus:ring-0 tracking-widest"
+              />
+              <input
+                type="number"
+                placeholder="SALARY"
+                value={newStaffSalary}
+                onChange={(e) => setNewStaffSalary(e.target.value)}
+                className="bg-transparent border-none rounded-2xl px-6 py-4 text-[11px] font-black w-full sm:w-32 focus:ring-0 tracking-widest"
+              />
+              <button type="submit" className="bg-blue-600 text-white text-[10px] px-8 py-5 md:py-4 rounded-2xl md:rounded-[2rem] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 whitespace-nowrap w-full sm:w-auto">
+                GENERATE ID
+              </button>
+            </form>
+          </div>
+
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {staff.map((s) => (
+              <div key={s.id} className="glass p-8 group relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-12 h-12 bg-blue-600/10 rounded-2xl flex items-center justify-center text-blue-600">
+                    <UserPlus size={20} />
+                  </div>
+                  <button onClick={() => deleteStaff(s.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-2">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1">{s.staff_id}</div>
+                <div className="text-xl font-bold text-[var(--theme-text)] tracking-tight">{s.name}</div>
+                <div className="text-[10px] font-black text-blue-600 mt-1 uppercase tracking-widest">₹{Number(s.salary).toLocaleString()} / MONTH</div>
+
+                <div className="mt-4 pt-4 border-t border-[var(--theme-border)] flex items-center justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <span>Operations</span>
+                  <span className="text-blue-600">ACTIVE</span>
+                </div>
+              </div>
+            ))}
+            {staff.length === 0 && (
+              <div className="col-span-full py-20 text-center glass border-dashed">
+                 <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px]">No staff identities registered in the system protocol.</p>
+              </div>
+            )}
+          </div>
+        </div>
+        {confirmAction && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
+            <div className="glass w-full max-w-md p-8 relative overflow-hidden border border-rose-500/10 shadow-2xl rounded-[2rem] text-center">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                <Shield size={100} className="text-rose-500" />
+              </div>
+              <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md">
+                <Trash2 size={28} />
+              </div>
+              <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em] mb-2">Destructive Action Alert</h3>
+              <p className="text-xl font-black text-[var(--theme-text)] tracking-tight mb-4">{confirmAction.title || 'Are you absolutely sure?'}</p>
+              <p className="text-xs text-slate-400 font-bold mb-8 leading-relaxed px-2">{confirmAction.message}</p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setConfirmAction(null)}
+                  className="flex-1 btn-secondary py-4 rounded-xl text-[10px] font-black tracking-widest uppercase"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    confirmAction.onConfirm();
+                    setConfirmAction(null);
+                  }}
+                  className="flex-1 btn-primary py-4 rounded-xl bg-rose-600 border-rose-600 hover:bg-rose-700 hover:border-rose-700 text-[10px] font-black tracking-widest uppercase shadow-2xl shadow-rose-500/20"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────
+#  L'Elite — Git Ignore Rules
+# ─────────────────────────────────────────────────────────────
+
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.production
+*.env
+
+# Node dependencies
+node_modules/
+.npm/
+
+# Build outputs
+dist/
+build/
+.vite/
+
+# Logs
+*.log
+*.err
+logs/
+npm-debug.log*
+
+# Database files
+*.sqlite
+*.db
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.suo
+*.swp
+*.swo
+
+# Python virtual env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Scratch / dev-only files
+backend/scratch/
+backend/add_*.js
+backend/database.sqlite
+backend/migrations/
+
+# Root-level dead files
+chat-test.*
+menu-test.*
+server.log
+server.err
+verify*.log
+verify*.err
+query1.sql
+sms-app-index-backup.js
+sms-app-src-backup/
+
+# React Native build artifacts
+sms-app/android/.gradle/
+sms-app/android/app/build/
+sms-app/android/build/
+sms-app/ios/Pods/
+sms-app/ios/build/
+sms-app/.gradle/
+
+# Coverage
+coverage/
+.nyc_output/
