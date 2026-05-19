@@ -10,7 +10,10 @@ const db = mysql.createPool({
    ssl: {
       minVersion: 'TLSv1.2',
       rejectUnauthorized: false
-   }
+   },
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
 });
 
 db.getConnection((err, connection) => {
