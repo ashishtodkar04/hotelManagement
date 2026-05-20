@@ -57,8 +57,12 @@ app.use('/api/', limiter);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+const MySQLStore = require('express-mysql-session')(session);
+const sessionStore = new MySQLStore({}, db);
+
 app.use(session({
     secret: process.env.SESSION_SECRET || 'restaurant-secret',
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
