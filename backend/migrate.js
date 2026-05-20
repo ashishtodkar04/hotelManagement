@@ -35,6 +35,35 @@ async function migrate() {
   await alter(`ALTER TABLE bookings ADD COLUMN adv_paid DECIMAL(10,2) DEFAULT 0.00`, 'bookings.adv_paid');
   await alter(`ALTER TABLE bookings ADD COLUMN staff_name VARCHAR(100) DEFAULT NULL`, 'bookings.staff_name');
 
+  // --- booking_history ---
+  await alter(`
+    CREATE TABLE IF NOT EXISTS booking_history (
+      id INT PRIMARY KEY,
+      user_id INT NOT NULL,
+      booking_ref VARCHAR(20) NOT NULL,
+      booking_date DATE NOT NULL,
+      time_slot VARCHAR(50) NOT NULL,
+      duration INT DEFAULT 2,
+      guests INT NOT NULL,
+      table_number VARCHAR(50) DEFAULT NULL,
+      status VARCHAR(50) DEFAULT 'pending',
+      adv_paid DECIMAL(10,2) DEFAULT 0.00,
+      payment_verified TINYINT(1) DEFAULT 0,
+      final_payment_verified TINYINT(1) DEFAULT 0,
+      expected_amount DECIMAL(10,2) DEFAULT 0.00,
+      bill_amount DECIMAL(10,2) DEFAULT 0.00,
+      final_bill_expected DECIMAL(10,2) DEFAULT NULL,
+      paid_amount DECIMAL(10,2) DEFAULT 0.00,
+      discount DECIMAL(10,2) DEFAULT 0.00,
+      utr_number VARCHAR(50) DEFAULT NULL,
+      payment_method VARCHAR(50) DEFAULT 'UPI',
+      staff_name VARCHAR(100) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, 'booking_history table');
+
+
   // --- dishes ---
   await alter(`ALTER TABLE dishes ADD COLUMN description TEXT`, 'dishes.description');
   await alter(`ALTER TABLE dishes ADD COLUMN type VARCHAR(20) DEFAULT 'veg'`, 'dishes.type');
