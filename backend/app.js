@@ -268,7 +268,7 @@ app.use((err, req, res, next) => {
 // ================= DATABASE DAY-CHANGE AUTOMATION =================
 async function initializeDayChangeAutomation() {
     try {
-        console.log('⚙️ Executing Stored Deletion Procedures...');
+        console.log('⚙️ Executing automated daily database cleanup...');
         // Run the deletion immediately on startup to clear any lingering completed bookings from past days
         // Move completed/cancelled to history before deleting (simulating the trigger)
         try {
@@ -284,14 +284,14 @@ async function initializeDayChangeAutomation() {
         setInterval(async () => {
             const currentDate = new Date().toDateString();
             if (currentDate !== lastCheckedDate) {
-                console.log(`🌅 Day change detected! Triggering deletion procedure to archive completed/cancelled bookings...`);
+                console.log(`🌅 Day change detected! Running queries to archive completed/cancelled bookings...`);
                 try {
                     await db.query("INSERT IGNORE INTO booking_history (id, user_id, booking_ref, booking_date, time_slot, duration, guests, table_number, status, adv_paid, payment_verified, final_payment_verified, expected_amount, bill_amount, final_bill_expected, paid_amount, discount, utr_number, payment_method, staff_name, created_at) SELECT id, user_id, booking_ref, booking_date, time_slot, duration, guests, table_number, status, adv_paid, payment_verified, final_payment_verified, expected_amount, bill_amount, final_bill_expected, paid_amount, discount, utr_number, payment_method, staff_name, created_at FROM bookings WHERE status IN ('completed', 'cancelled')");
                     await db.query("DELETE FROM bookings WHERE status IN ('completed', 'cancelled')");
                     console.log('✅ Day-change auto-clean completed successfully.');
                     lastCheckedDate = currentDate;
                 } catch (err) {
-                    console.error('❌ Failed to run day-change deletion procedure:', err);
+                    console.error('❌ Failed to run day-change queries:', err);
                 }
             }
         }, 15 * 60 * 1000); // Check every 15 minutes
