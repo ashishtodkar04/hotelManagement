@@ -385,7 +385,7 @@ export default function AdminDashboard() {
               <div className="h-4 w-px bg-[var(--theme-border)]" />
               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                 <Server size={14} />
-                Terminal: <span className="text-[var(--theme-text)]">{monitorStatus.serverIp}</span>
+                Endpoint: <span className="text-[var(--theme-text)] font-mono">{monitorStatus.serverIp}</span>
               </div>
             </div>
 
@@ -558,8 +558,8 @@ export default function AdminDashboard() {
                   </p>
                   <div className="flex flex-wrap gap-6 mt-6">
                     <div className="bg-[var(--theme-accent)] px-6 py-4 rounded-2xl border border-[var(--theme-border)]">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Target Terminal IP</p>
-                      <p className="text-xl font-black text-blue-600 font-mono tracking-widest">{monitorStatus.serverIp}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">App Connection URL</p>
+                      <p className="text-xl font-black text-blue-600 font-mono tracking-widest select-all">{monitorStatus.serverIp}</p>
                     </div>
                     <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-300">
                       <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white">!</div>

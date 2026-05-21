@@ -836,15 +836,19 @@ router.get('/api/monitor-status', (req, res) => {
     const diff = lastMonitorHeartbeat ? (now - lastMonitorHeartbeat) : 999999;
     const isOnline = diff < 60000;
     
-    // Get Local IP
-    const networkInterfaces = os.networkInterfaces();
-    let localIp = 'localhost';
-    for (const name of Object.keys(networkInterfaces)) {
-        for (const net of networkInterfaces[name]) {
-            if (net.family === 'IPv4' && !net.internal) {
-                localIp = net.address;
+    // Get Target Endpoint URL
+    let targetUrl = 'https://hotelmanagement-mhlu.onrender.com';
+    if (process.env.NODE_ENV !== 'production') {
+        const networkInterfaces = os.networkInterfaces();
+        let localIp = 'localhost';
+        for (const name of Object.keys(networkInterfaces)) {
+            for (const net of networkInterfaces[name]) {
+                if (net.family === 'IPv4' && !net.internal) {
+                    localIp = net.address;
+                }
             }
         }
+        targetUrl = `http://${localIp}:${process.env.PORT || 3000}`;
     }
 
     res.json({ 
@@ -853,7 +857,7 @@ router.get('/api/monitor-status', (req, res) => {
         online: !!isOnline,
         lastSeen: lastMonitorHeartbeat,
         diffSeconds: Math.round(diff / 1000),
-        serverIp: localIp
+        serverIp: targetUrl
     });
 });
 
