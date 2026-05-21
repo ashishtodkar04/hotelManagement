@@ -60,15 +60,18 @@ app.use(express.json());
 const MySQLStore = require('express-mysql-session')(session);
 const sessionStore = new MySQLStore({}, db);
 
+const isProduction = process.env.NODE_ENV === 'production';
 app.use(session({
     secret: process.env.SESSION_SECRET || 'restaurant-secret',
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: {
-        secure: false, // Set to true only if using HTTPS
-        sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000 // 24h
+        secure: isProduction,          // HTTPS only in production
+        sameSite: isProduction ? 'none' : 'lax', // 'none' required for cross-origin (Vercel→Render)
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000   // 24h
     }
 }));
 

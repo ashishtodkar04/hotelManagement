@@ -85,6 +85,18 @@ router.get('/login', (req, res) => {
     });
 });
 
+// Dedicated auth check — used by frontend's checkAdminAuth()
+router.get('/check-auth', (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.json({
+        loggedIn: !!req.session?.adminId,
+        isStaff:  !!req.session?.staffId,
+        staffName: req.session?.staffName || null,
+        role: req.session?.role || (req.session?.adminId ? 'admin' : null)
+    });
+});
+
+
 router.post('/login', validate(schemas.adminLogin), (req, res) => {
     const { username, password } = req.body || {};
     const adminUser = process.env.ADMIN_USER || 'admin';
@@ -196,6 +208,23 @@ router.post('/add-table', requireAdmin, async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
+// Alias: frontend calls POST /api/admin/tables
+router.post('/tables', requireAdmin, async (req, res) => {
+    try {
+        const { table_name, capacity } = req.body;
+        if (!table_name) return res.status(400).json({ error: 'Table name required' });
+        const [result] = await db.execute(
+            'INSERT INTO restaurant_tables (table_name, capacity, status) VALUES (?, ?, ?)',
+            [table_name, Number(capacity) || 4, 'available']
+        );
+        if (req.io) req.io.emit('table_update', { action: 'add' });
+        res.json({ success: true, id: result.insertId });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 
 router.put('/tables/:id', requireAdmin, async (req, res) => {
     try {

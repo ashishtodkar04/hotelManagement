@@ -32,7 +32,7 @@ const useStore = create((set) => ({
 
   checkAdminAuth: async () => {
     try {
-      const res = await api.get('/api/admin/login');
+      const res = await api.get('/api/admin/check-auth');
       set({ 
         isAdmin: !!res.data.loggedIn, 
         isStaff: !!res.data.isStaff,
@@ -46,7 +46,7 @@ const useStore = create((set) => ({
 
   checkStaffAuth: async () => {
     try {
-      const res = await api.get('/api/admin/login');
+      const res = await api.get('/api/admin/check-auth');
       set({ isStaff: !!res.data.isStaff, isAdmin: !!res.data.loggedIn, isAdminLoading: false });
     } catch {
       set({ isStaff: false, isAdminLoading: false });

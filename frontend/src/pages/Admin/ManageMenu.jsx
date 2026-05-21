@@ -363,7 +363,7 @@ export default function ManageMenu() {
                 {/* Media */}
                 <div className="h-56 rounded-[2.5rem] bg-[var(--theme-accent)] mb-8 overflow-hidden relative border border-[var(--theme-border)]">
                   {dish.image ? (
-                    <img src={dish.image && dish.image.startsWith('http') ? dish.image : `http://localhost:3000${dish.image}`}
+                    <img src={dish.image && dish.image.startsWith('http') ? dish.image : `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${dish.image}`}
                       alt={dish.name} className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-[2s] ease-out" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"><Utensils size={48} className="text-slate-300" /></div>

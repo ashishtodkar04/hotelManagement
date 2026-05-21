@@ -83,9 +83,11 @@ async function migrate() {
       cost DECIMAL(10,2) NOT NULL,
       date DATE NOT NULL,
       added_by VARCHAR(100) DEFAULT NULL,
+      stock_status ENUM('in_stock','low_stock','out_of_stock') DEFAULT 'in_stock',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `, 'warehouse table');
+  await alter(`ALTER TABLE warehouse ADD COLUMN stock_status ENUM('in_stock','low_stock','out_of_stock') DEFAULT 'in_stock'`, 'warehouse.stock_status');
 
   // --- restaurant_tables ---
   await alter(`

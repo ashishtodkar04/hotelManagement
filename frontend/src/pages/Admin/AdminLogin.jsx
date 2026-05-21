@@ -9,20 +9,29 @@ export default function AdminLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const { isAdmin, isStaff, checkAdminAuth } = useStore();
+  const { isAdmin, isStaff, isAdminLoading, checkAdminAuth } = useStore();
   const navigate = useNavigate();
 
+  // If already authenticated, redirect immediately
   useEffect(() => {
-    if (isAdmin) navigate('/admin');
-    else if (isStaff) navigate('/admin/chef');
-  }, [isAdmin, isStaff, navigate]);
+    if (!isAdminLoading) {
+      if (isAdmin) navigate('/admin', { replace: true });
+      else if (isStaff) navigate('/admin/chef', { replace: true });
+    }
+  }, [isAdmin, isStaff, isAdminLoading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
       const res = await api.post('/api/admin/login', form);
-      if (res.data.success) { await checkAdminAuth(); navigate('/admin'); }
+      if (res.data.success) {
+        // Re-check auth so store is updated BEFORE navigating
+        await checkAdminAuth();
+        navigate('/admin', { replace: true });
+      } else {
+        setError('Access Denied: Invalid Credentials');
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Access Denied: Invalid Credentials');
     } finally {

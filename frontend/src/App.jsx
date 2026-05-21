@@ -36,19 +36,20 @@ function AppContent() {
     checkAdminAuth();
   }, [fetchConfig, checkAuth, checkAdminAuth]);
 
+  // Show global spinner inside the Router so hooks order is stable
   if (isAuthLoading || isAdminLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500 text-sm font-medium">Loading {HOTEL_NAME}…</p>
+          <p className="text-slate-500 text-sm font-medium">Loading {HOTEL_NAME}\u2026</p>
         </div>
       </div>
     );
   }
 
   return (
-    <Router>
+    <>
       <Navbar />
       
       {/* Global Animated Background Objects */}
@@ -85,12 +86,16 @@ function AppContent() {
         </Routes>
         <ChatWidget />
       </div>
-    </Router>
+    </>
   );
 }
 
 function App() {
-  return <AppContent />;
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
 }
 
 export default App;
