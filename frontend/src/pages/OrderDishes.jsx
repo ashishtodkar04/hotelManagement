@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Search, Plus, Minus, Trash2, ShoppingCart, CheckCircle, Leaf, Flame, ChevronLeft, Utensils, Activity, Sparkles, Sparkle, X } from 'lucide-react';
-import api from '../services/api';
+import api, { getApiUrl } from '../services/api';
 import useStore from '../store/useStore';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -256,7 +256,7 @@ export default function OrderDishes() {
                   <div key={dish.id} className="glass p-8 flex items-center gap-6 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-700">
                     <div className="w-24 h-24 rounded-[1.5rem] overflow-hidden bg-[var(--theme-accent)] flex items-center justify-center shrink-0 relative border border-[var(--theme-border)]">
                       {dish.image
-                        ? <img src={dish.image.startsWith('http') ? dish.image : `http://localhost:3000${dish.image}`} alt={dish.name} className="w-full h-full object-cover transition-transform group-hover:scale-125 duration-[2s] ease-out" />
+                        ? <img src={dish.image.startsWith('http') ? dish.image : `${getApiUrl()}${dish.image}`} alt={dish.name} className="w-full h-full object-cover transition-transform group-hover:scale-125 duration-[2s] ease-out" />
                         : <span className="text-4xl opacity-20">{TABS.find(t_item => t_item.id === activeTab)?.emoji}</span>
                       }
                       {dish.type && (

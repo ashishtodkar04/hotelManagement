@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
+import { getApiUrl } from './api';
 
-const URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const URL = getApiUrl();
 
 export const socket = io(URL, {
   withCredentials: true,

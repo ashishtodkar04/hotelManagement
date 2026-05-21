@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Star, Clock, MapPin, Award, ChevronRight, Utensils } from 'lucide-react';
-import api from '../services/api';
+import api, { getApiUrl } from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
 import { useHotel } from '../hooks/useHotel';
 
@@ -106,7 +106,7 @@ export default function Home() {
                 <div key={d.id} className="glass overflow-hidden group hover:-translate-y-3 hover:shadow-2xl transition-all duration-700">
                   <div className="h-80 bg-[var(--theme-bg)] flex items-center justify-center relative overflow-hidden">
                     {d.image
-                      ? <img src={d.image.startsWith('http') ? d.image : `http://localhost:3000${d.image}`} alt={d.name} className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-[2s] ease-out" />
+                      ? <img src={d.image.startsWith('http') ? d.image : `${getApiUrl()}${d.image}`} alt={d.name} className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-[2s] ease-out" />
                       : <div className="p-10"><Utensils size={64} className="text-slate-200" /></div>
                     }
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />

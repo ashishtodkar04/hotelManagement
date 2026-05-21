@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Leaf, Flame, Search, ChevronRight, Utensils, Star, Activity, Sparkles, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import api, { getApiUrl } from '../services/api';
 import useStore from '../store/useStore';
 
 const TABS = [
@@ -21,7 +21,7 @@ function DishCard({ dish, tabEmoji }) {
       <div className="h-56 md:h-64 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden bg-[var(--theme-accent)] mb-6 md:mb-8 flex items-center justify-center relative border border-[var(--theme-border)]">
         {dish.image ? (
           <img
-            src={dish.image.startsWith('http') ? dish.image : `http://localhost:3000${dish.image}`}
+            src={dish.image.startsWith('http') ? dish.image : `${getApiUrl()}${dish.image}`}
             alt={dish.name}
             className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-[2s] ease-out"
           />
