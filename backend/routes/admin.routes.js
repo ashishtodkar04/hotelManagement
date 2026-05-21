@@ -628,10 +628,14 @@ router.post('/verify-payment', requireAdmin, async (req, res) => {
 router.get('/history', requireAdmin, async (req, res) => {
     try {
         const [bookings] = await db.execute(`
-            SELECT b.*, u.username as user_name 
+            SELECT b.id, b.user_id, b.booking_ref, b.booking_date, b.time_slot, b.duration, b.guests, b.table_number, b.status, b.adv_paid, b.payment_verified, b.final_payment_verified, b.expected_amount, b.bill_amount, b.final_bill_expected, b.paid_amount, b.discount, b.utr_number, b.payment_method, b.staff_name, b.created_at, u.username as user_name 
             FROM bookings b 
             LEFT JOIN users u ON b.user_id = u.id 
-            ORDER BY b.booking_date DESC, b.time_slot DESC 
+            UNION ALL
+            SELECT bh.id, bh.user_id, bh.booking_ref, bh.booking_date, bh.time_slot, bh.duration, bh.guests, bh.table_number, bh.status, bh.adv_paid, bh.payment_verified, bh.final_payment_verified, bh.expected_amount, bh.bill_amount, bh.final_bill_expected, bh.paid_amount, bh.discount, bh.utr_number, bh.payment_method, bh.staff_name, bh.created_at, u.username as user_name 
+            FROM booking_history bh 
+            LEFT JOIN users u ON bh.user_id = u.id 
+            ORDER BY booking_date DESC, time_slot DESC 
             LIMIT 500
         `);
         res.json({ success: true, bookings });
@@ -644,7 +648,11 @@ router.get('/stats', requireAdmin, async (req, res) => {
     try {
         const [dailyRevenue] = await db.execute(`
             SELECT booking_date, SUM(bill_amount) as revenue 
-            FROM bookings 
+            FROM (
+                SELECT booking_date, bill_amount, status FROM bookings
+                UNION ALL
+                SELECT booking_date, bill_amount, status FROM booking_history
+            ) all_bookings
             WHERE status = 'completed' AND booking_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
             GROUP BY booking_date 
             ORDER BY booking_date ASC
@@ -697,7 +705,11 @@ router.get('/payments', requireAdmin, async (req, res) => {
         const [payments] = await db.execute(`
             SELECT p.*, b.booking_ref, b.status as booking_status, u.name as user_name
             FROM payments p
-            LEFT JOIN bookings b ON p.booking_id = b.id
+            LEFT JOIN (
+                SELECT id, booking_ref, status, user_id FROM bookings
+                UNION ALL
+                SELECT id, booking_ref, status, user_id FROM booking_history
+            ) b ON p.booking_id = b.id
             LEFT JOIN users u ON b.user_id = u.id
             ORDER BY p.created_at DESC
             LIMIT 100
@@ -722,12 +734,17 @@ router.get('/search-customer', requireAdmin, async (req, res) => {
 
         // 2. Search for Bookings
         const [bookings] = await db.execute(`
-            SELECT b.*, u.name as user_name, u.email as user_email, u.phone as user_phone
+            SELECT b.id, b.user_id, b.booking_ref, b.booking_date, b.time_slot, b.duration, b.guests, b.table_number, b.status, b.adv_paid, b.payment_verified, b.final_payment_verified, b.expected_amount, b.bill_amount, b.final_bill_expected, b.paid_amount, b.discount, b.utr_number, b.payment_method, b.staff_name, b.created_at, u.name as user_name, u.email as user_email, u.phone as user_phone
             FROM bookings b
             LEFT JOIN users u ON b.user_id = u.id
             WHERE b.id = ? OR b.booking_ref LIKE ? OR b.user_id = ?
-            ORDER BY b.booking_date DESC
-        `, [query, `%${query}%`, query]);
+            UNION ALL
+            SELECT bh.id, bh.user_id, bh.booking_ref, bh.booking_date, bh.time_slot, bh.duration, bh.guests, bh.table_number, bh.status, bh.adv_paid, bh.payment_verified, bh.final_payment_verified, bh.expected_amount, bh.bill_amount, bh.final_bill_expected, bh.paid_amount, bh.discount, bh.utr_number, bh.payment_method, bh.staff_name, bh.created_at, u.name as user_name, u.email as user_email, u.phone as user_phone
+            FROM booking_history bh
+            LEFT JOIN users u ON bh.user_id = u.id
+            WHERE bh.id = ? OR bh.booking_ref LIKE ? OR bh.user_id = ?
+            ORDER BY booking_date DESC
+        `, [query, `%${query}%`, query, query, `%${query}%`, query]);
 
         // 3. Get Orders for results
         let orders = [];
