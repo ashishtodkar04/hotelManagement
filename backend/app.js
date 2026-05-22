@@ -118,7 +118,8 @@ app.use('/', userRoutes);
 app.use('/api/admin', adminRoutes);
 
 // ================= SOCKET.IO CHAT =================[cite: 1]
-const chatThreads = new Map();
+const onlineUsers = new Map(); // userId -> Set of socket.ids
+const onlineAdmins = new Set(); // socket.ids
 
 function normalizeChatMessage(data, sender) {
     if (!data || !data.userId || !data.message) return null;
@@ -128,15 +129,16 @@ function normalizeChatMessage(data, sender) {
         userName: data.userName || String(data.userId),
         sender,
         message: String(data.message),
-        time: data.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        time: data.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        is_read: data.is_read || 0
     };
 }
 
 async function storeChatMessage(message) {
     try {
         await db.execute(
-            'INSERT INTO messages (user_id, user_name, sender, message, time) VALUES (?, ?, ?, ?, ?)',
-            [message.userId, message.userName, message.sender, message.message, message.time]
+            'INSERT INTO messages (user_id, user_name, sender, message, time, is_read) VALUES (?, ?, ?, ?, ?, ?)',
+            [message.userId, message.userName, message.sender, message.message, message.time, message.is_read || 0]
         );
     } catch (err) {
         console.error('[CHAT] DB Store Error:', err);
@@ -155,7 +157,8 @@ async function getChatHistory(userId) {
             userName: r.user_name,
             sender: r.sender,
             message: r.message,
-            time: r.time
+            time: r.time,
+            is_read: r.is_read
         }));
     } catch (err) {
         return [];
@@ -175,16 +178,26 @@ async function getAllThreads() {
             ORDER BY m1.created_at DESC
         `);
 
-        const threads = await Promise.all(rows.map(async (r) => ({
-            userId: r.user_id,
-            userName: r.user_name,
-            messages: await getChatHistory(r.user_id)
-        })));
+        const threads = await Promise.all(rows.map(async (r) => {
+            const [unreadRows] = await db.execute(
+                "SELECT COUNT(*) as count FROM messages WHERE user_id = ? AND sender = 'user' AND is_read = 0",
+                [r.user_id]
+            );
+            const unreadCount = unreadRows[0]?.count || 0;
+
+            return {
+                userId: r.user_id,
+                userName: r.user_name,
+                unreadCount,
+                messages: await getChatHistory(r.user_id)
+            };
+        }));
         return threads;
     } catch (err) {
         return [];
     }
 }
+
 const autoReplyState = new Map();
 
 async function sendAutoReply(userId, userName) {
@@ -200,7 +213,8 @@ async function sendAutoReply(userId, userName) {
                 userName: userName || 'Guest',
                 sender: 'admin',
                 message: replies[i],
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                is_read: 0
             };
             await storeChatMessage(autoMsg);
             io.to(`user_${userId}`).emit('receive_message', autoMsg);
@@ -213,20 +227,40 @@ io.on('connection', (socket) => {
     socket.on('join_user', async (payload) => {
         const userId = String(payload?.userId || payload || '');
         if (!userId) return;
+        
+        socket.userId = userId;
+        if (!onlineUsers.has(userId)) {
+            onlineUsers.set(userId, new Set());
+        }
+        onlineUsers.get(userId).add(socket.id);
+
         socket.join(`user_${userId}`);
         const history = await getChatHistory(userId);
         socket.emit('user_chat_history', history);
+
+        // Notify admins that user is online
+        io.to('admin_room').emit('user_status', { userId, status: 'online' });
     });
 
     socket.on('join_admin', async () => {
         socket.join('admin_room');
+        socket.isAdmin = true;
+        onlineAdmins.add(socket.id);
+
         const threads = await getAllThreads();
         socket.emit('chat_history', threads);
+
+        // Send list of currently online userIds to this admin
+        const onlineUserIds = Array.from(onlineUsers.keys());
+        socket.emit('online_users_list', onlineUserIds);
     });
 
     socket.on('user_message', async (data) => {
         const message = normalizeChatMessage(data, 'user');
         if (!message) return;
+
+        // If user sends message, check if there's any active admin who will read it instantly.
+        // We'll insert as unread (is_read = 0) and let admin mark read.
         await storeChatMessage(message);
         io.to('admin_room').emit('receive_message', message);
         io.to(`user_${message.userId}`).emit('receive_message', message);
@@ -243,12 +277,63 @@ io.on('connection', (socket) => {
     socket.on('admin_message', async (data) => {
         const message = normalizeChatMessage(data, 'admin');
         if (!message) return;
+
+        // If the user has active socket connections, we can set is_read = 1 if they are currently viewing.
+        // For simplicity, we save as is_read = 0 and let user client mark read when open.
         await storeChatMessage(message);
         io.to(`user_${message.userId}`).emit('receive_message', message);
         io.to('admin_room').emit('receive_message', message);
     });
 
-    socket.on('disconnect', () => { });
+    socket.on('mark_read', async (data) => {
+        const { userId, sender } = data;
+        if (!userId || !sender) return;
+
+        try {
+            // Admin reading means messages sent by 'user' are marked read
+            // User reading means messages sent by 'admin' are marked read
+            const targetSender = sender === 'admin' ? 'user' : 'admin';
+            await db.execute(
+                'UPDATE messages SET is_read = 1 WHERE user_id = ? AND sender = ?',
+                [userId, targetSender]
+            );
+
+            // Broadcast read state confirmation to both sides
+            io.to(`user_${userId}`).emit('messages_read', { userId, sender });
+            io.to('admin_room').emit('messages_read', { userId, sender });
+        } catch (err) {
+            console.error('[CHAT] Mark read error:', err);
+        }
+    });
+
+    socket.on('typing', (data) => {
+        // data should be: { userId, sender, isTyping }
+        const { userId, sender, isTyping } = data;
+        if (!userId || !sender) return;
+
+        if (sender === 'user') {
+            io.to('admin_room').emit('typing', { userId, sender, isTyping });
+        } else {
+            io.to(`user_${userId}`).emit('typing', { userId, sender, isTyping });
+        }
+    });
+
+    socket.on('disconnect', () => {
+        // Handle user disconnect
+        if (socket.userId && onlineUsers.has(socket.userId)) {
+            const userSockets = onlineUsers.get(socket.userId);
+            userSockets.delete(socket.id);
+            if (userSockets.size === 0) {
+                onlineUsers.delete(socket.userId);
+                io.to('admin_room').emit('user_status', { userId: socket.userId, status: 'offline' });
+            }
+        }
+
+        // Handle admin disconnect
+        if (socket.isAdmin) {
+            onlineAdmins.delete(socket.id);
+        }
+    });
 });
 
 // ================= ERROR HANDLER =================

@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS `staff` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `staff_id` VARCHAR(20) UNIQUE DEFAULT NULL,
   `name` VARCHAR(100) DEFAULT NULL,
+  `salary` DECIMAL(10,2) DEFAULT 0.00,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -142,6 +143,7 @@ CREATE TABLE IF NOT EXISTS `warehouse` (
   `cost` DECIMAL(10,2) NOT NULL,
   `date` DATE NOT NULL,
   `added_by` VARCHAR(100) DEFAULT NULL,
+  `stock_status` ENUM('in_stock','low_stock','out_of_stock') DEFAULT 'in_stock',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

@@ -99,6 +99,9 @@ async function migrate() {
     )
   `, 'restaurant_tables table');
 
+  // --- staff ---
+  await alter(`ALTER TABLE staff ADD COLUMN salary DECIMAL(10,2) DEFAULT 0.00`, 'staff.salary');
+
   // --- payments ---
   await alter(`ALTER TABLE payments ADD COLUMN method VARCHAR(50) DEFAULT 'UPI'`, 'payments.method');
 
@@ -114,6 +117,7 @@ async function migrate() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `, 'messages table');
+  await alter(`ALTER TABLE messages ADD COLUMN is_read TINYINT(1) DEFAULT 0`, 'messages.is_read');
 
   console.log('\n🎉 Migration complete!');
   process.exit(0);

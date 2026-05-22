@@ -50,12 +50,14 @@ router.post('/staff', requireAdmin, async (req, res) => {
     try {
         const { name, salary } = req.body;
         // Generate next ID: ST11001, ST11002...
-        const [lastStaff] = await db.execute('SELECT staff_id FROM staff ORDER BY id DESC LIMIT 1');
+        const [lastStaff] = await db.execute('SELECT staff_id FROM staff WHERE staff_id LIKE "ST%" ORDER BY id DESC LIMIT 1');
         let nextId = 'ST11001';
-        if (lastStaff.length > 0) {
+        if (lastStaff.length > 0 && lastStaff[0].staff_id) {
             const lastId = lastStaff[0].staff_id;
             const lastNum = parseInt(lastId.replace('ST', ''));
-            nextId = `ST${lastNum + 1}`;
+            if (!isNaN(lastNum)) {
+                nextId = `ST${lastNum + 1}`;
+            }
         }
 
         await db.execute('INSERT INTO staff (staff_id, name, salary) VALUES (?, ?, ?)', [nextId, name, Number(salary) || 0]);

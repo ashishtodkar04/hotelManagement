@@ -25,6 +25,7 @@ import Warehouse from './pages/Admin/Warehouse';
 import BookingHistory from './pages/Admin/BookingHistory';
 import ChatWidget from './components/ChatWidget';
 import AdminChat from './pages/Admin/AdminChat';
+import AdminChatNotificationManager from './components/AdminChatNotificationManager';
 
 function AppContent() {
   const { fetchConfig, checkAuth, checkAdminAuth, isAuthLoading, isAdminLoading } = useStore();
@@ -85,6 +86,7 @@ function AppContent() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <ChatWidget />
+        <AdminChatNotificationManager />
       </div>
     </>
   );

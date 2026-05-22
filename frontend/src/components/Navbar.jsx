@@ -10,11 +10,15 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showLang, setShowLang] = useState(false);
-  const { user, logout, isAdmin, isStaff, adminLogout } = useStore();
+  const { user, logout, isAdmin, isStaff, adminLogout, adminThreads } = useStore();
   const { theme, toggleTheme } = useTheme();
   const { lang, setLang, t } = useLanguage();
   const location = useLocation();
   const { name: HOTEL_NAME } = useHotel();
+
+  const totalUnread = (isAdmin || isStaff) && adminThreads 
+    ? adminThreads.reduce((sum, t) => sum + (t.unreadCount || 0), 0) 
+    : 0;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -32,6 +36,7 @@ export default function Navbar() {
     navLinks.push({ name: 'Warehouse', path: '/admin/warehouse' });
     navLinks.push({ name: 'Kitchen', path: '/admin/chef' });
     navLinks.push({ name: 'Walk-in POS', path: '/admin/pos' });
+    navLinks.push({ name: 'Concierge Chat', path: '/admin/chat', showBadge: true });
   } else {
     // Guest Navigation
     navLinks = [
@@ -69,11 +74,16 @@ export default function Navbar() {
               <Link 
                 key={link.path} 
                 to={link.path}
-                className={`text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-300 hover:text-blue-600 ${
+                className={`text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-300 hover:text-blue-600 flex items-center gap-2 ${
                   location.pathname === link.path ? 'text-blue-600' : 'text-slate-500'
                 }`}
               >
-                {link.name}
+                <span>{link.name}</span>
+                {link.showBadge && totalUnread > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-black animate-pulse shadow-md shadow-emerald-500/20">
+                    {totalUnread}
+                  </span>
+                )}
               </Link>
             )
           ))}
@@ -168,7 +178,15 @@ export default function Navbar() {
                   className="text-5xl font-serif italic font-bold text-slate-900 dark:text-white flex items-center justify-between group py-2"
                   style={{ animationDelay: `${idx * 0.1}s`, animation: 'fade-in 0.8s forwards' }}
                 >
-                  {link.name} <ChevronRight className="text-blue-600 opacity-50" size={32} />
+                  <span className="flex items-center gap-4">
+                    <span>{link.name}</span>
+                    {link.showBadge && totalUnread > 0 && (
+                      <span className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-md">
+                        {totalUnread}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronRight className="text-blue-600 opacity-50" size={32} />
                 </Link>
               )
             ))}
