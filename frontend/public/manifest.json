@@ -8,14 +8,20 @@
       "type": "image/x-icon"
     },
     {
+      "src": "favicon.png",
+      "type": "image/png",
+      "sizes": "any",
+      "purpose": "any maskable"
+    },
+    {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "any"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "any"
     }
   ],
   "description": "Lelite Hotel System - Professional Hospitality Management",
