@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link, Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { 
   MessageSquare, Send, User, ChevronLeft, Search, 
   ShieldCheck, Sparkles, Activity, Trash2, Check
@@ -20,7 +20,6 @@ export default function AdminChat() {
     markAdminThreadAsReadInStore
   } = useStore();
 
-  const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
   const scrollRef = useRef(null);

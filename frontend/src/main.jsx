@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -6,17 +7,27 @@ import { LanguageProvider } from './context/LanguageContext';
 import App from './App.jsx';
 import './index.css';
 
-const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+function SafeGoogleOAuthProvider({ children }) {
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  if (!clientId || clientId.includes('placeholder') || clientId.includes('v3p6b6b6') || clientId.trim() === '') {
+    return <>{children}</>;
+  }
+  return (
+    <GoogleOAuthProvider clientId={clientId}>
+      {children}
+    </GoogleOAuthProvider>
+  );
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={clientId}>
+    <SafeGoogleOAuthProvider>
       <ThemeProvider>
         <LanguageProvider>
           <App />
         </LanguageProvider>
       </ThemeProvider>
-    </GoogleOAuthProvider>
+    </SafeGoogleOAuthProvider>
   </StrictMode>,
 );
 

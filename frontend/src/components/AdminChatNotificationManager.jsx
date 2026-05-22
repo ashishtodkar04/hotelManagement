@@ -1,6 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MessageSquare, X, ShieldAlert } from 'lucide-react';
+import { MessageSquare, X } from 'lucide-react';
 import useStore from '../store/useStore';
 import socket from '../services/socket';
 
