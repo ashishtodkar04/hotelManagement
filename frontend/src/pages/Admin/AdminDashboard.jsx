@@ -362,6 +362,8 @@ export default function AdminDashboard() {
     { label: t('monitor_sync'), value: monitorStatus.active ? t('active') : t('offline'), color: monitorStatus.active ? 'text-emerald-500' : 'text-rose-500', icon: RefreshCw }
   ];
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
   return (
     <div className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] transition-colors duration-500 pb-20">
       <header className="sticky top-0 z-[60] bg-[var(--theme-panel)] backdrop-blur-2xl border-b border-[var(--theme-border)] px-4 md:px-8 py-4 md:py-6 shadow-xl">
@@ -592,7 +594,7 @@ export default function AdminDashboard() {
           {stats.map((s, i) => (
             <div key={i} className="glass p-6 md:p-12 group hover:shadow-2xl hover:-translate-y-2 transition-all duration-700 relative overflow-hidden border border-blue-600/5">
               <div className="absolute top-0 right-0 p-4 md:p-8 opacity-5 group-hover:scale-125 transition-transform duration-700 group-hover:text-blue-600">
-                <s.icon size={statsData.isMobile ? 40 : 80} />
+                <s.icon size={isMobile ? 40 : 80} />
               </div>
               <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-slate-400 mb-4 md:mb-8">{s.label}</p>
               <div className={`text-2xl md:text-5xl font-black tracking-tighter font-serif ${s.color}`}>{s.value}</div>
@@ -687,7 +689,7 @@ export default function AdminDashboard() {
             { to: "/admin/chat", icon: MessageSquare, label: "Concierge Chat" },
           ].map(link => (
             <Link key={link.to} to={link.to} className="bg-[var(--theme-panel)] border border-[var(--theme-border)] px-6 md:px-12 py-4 md:py-6 rounded-2xl md:rounded-3xl flex items-center gap-3 md:gap-5 hover:border-blue-600 hover:text-blue-600 transition-all font-black text-[9px] md:text-[11px] uppercase tracking-[0.2em] shadow-xl hover:-translate-y-1">
-              <link.icon size={statsData.isMobile ? 18 : 22} /> {link.label}
+              <link.icon size={isMobile ? 18 : 22} /> {link.label}
             </Link>
           ))}
         </div>
