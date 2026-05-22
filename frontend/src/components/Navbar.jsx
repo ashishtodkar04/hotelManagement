@@ -56,8 +56,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="group flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 duration-500 shadow-lg">
-            <span className="text-white dark:text-slate-900 font-serif italic text-2xl font-bold">{HOTEL_NAME?.[0]}</span>
+          <div className="w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center transition-transform group-hover:rotate-12 duration-500 shadow-lg border border-[var(--theme-border)]">
+            <img src="/logo192.png" className="w-full h-full object-cover" alt="Lelite Logo" />
           </div>
           <span className="font-serif italic text-2xl font-bold tracking-tighter text-slate-900 dark:text-white">{HOTEL_NAME}</span>
         </Link>

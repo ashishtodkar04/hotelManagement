@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lelite-sovereign-v1';
+const CACHE_NAME = 'lelite-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

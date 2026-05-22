@@ -1,4 +1,4 @@
--- L'Elite Database Schema
+-- Lelite Database Schema
 -- Includes all table creations, procedures, and triggers (if any).
 -- Note: Currently no procedures or triggers are used/defined in the project.
 

@@ -274,15 +274,14 @@ export default function Dashboard() {
               {t('welcome_msg').split(' ')[0]} <span className="text-blue-600">{user.name?.split(' ')[0]}</span>
             </h1>
           </div>
-          <div className="flex flex-wrap gap-4 md:gap-6">
-            <button onClick={() => { setShowSecurity(true); setProfileForm({ name: user.name, phone: user.phone }); }} className="btn-secondary py-4 md:py-5 px-8 md:px-10 text-[9px] md:text-[10px] gap-3 md:gap-4 border-blue-600/20 text-blue-600">
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <button onClick={() => { setShowSecurity(true); setProfileForm({ name: user.name, phone: user.phone }); }} className="btn-secondary py-4 md:py-5 px-8 md:px-10 text-[9px] md:text-[10px] gap-3 md:gap-4 border-blue-600/20 text-blue-600 w-full sm:w-auto flex justify-center text-center">
               <Shield size={18} md:size={20} /> IDENTITY & SECURITY
             </button>
-            <Link to="/history" className="btn-secondary py-4 md:py-5 px-8 md:px-10 text-[9px] md:text-[10px] gap-3 md:gap-4">
-
+            <Link to="/history" className="btn-secondary py-4 md:py-5 px-8 md:px-10 text-[9px] md:text-[10px] gap-3 md:gap-4 w-full sm:w-auto flex justify-center text-center">
               <History size={18} md:size={20} /> VISIT HISTORY
             </Link>
-            <Link to="/booking" className="btn-primary py-4 md:py-5 px-8 md:px-10 text-[9px] md:text-[10px] gap-3 md:gap-4 shadow-2xl">
+            <Link to="/booking" className="btn-primary py-4 md:py-5 px-8 md:px-10 text-[9px] md:text-[10px] gap-3 md:gap-4 shadow-2xl w-full sm:w-auto flex justify-center text-center">
               <Plus size={18} md:size={20} /> {t('book_now').toUpperCase()}
             </Link>
           </div>

@@ -423,7 +423,7 @@ export default function ManageMenu() {
 
 function DishForm({ formData, setFormData, onSave, onCancel }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12">
       <div className="lg:col-span-2">
         <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 ml-1">Creation Name</label>
         <input type="text" placeholder="Signature Culinary Name" value={formData.name}

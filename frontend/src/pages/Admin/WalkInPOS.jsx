@@ -114,7 +114,7 @@ export default function WalkInPOS() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveCategory(tab.id)}
-                    className={`px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-700 border-2 ${
+                    className={`px-6 py-4 md:px-10 md:py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-700 border-2 ${
                       activeCategory === tab.id 
                       ? 'bg-blue-600 border-blue-600 text-white shadow-2xl shadow-blue-500/20 scale-105' 
                       : 'bg-[var(--theme-panel)] border-[var(--theme-border)] text-slate-400 hover:text-blue-600 hover:border-blue-600'
@@ -136,7 +136,7 @@ export default function WalkInPOS() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-8">
               {filtered.map(item => (
                 <button
                   key={item.id}
@@ -169,7 +169,7 @@ export default function WalkInPOS() {
           {/* Checkout Ledger (Right) */}
           <div className="lg:col-span-4 h-fit sticky top-32">
             <div className="glass flex flex-col overflow-hidden shadow-2xl border-2 border-blue-600/5">
-              <div className="px-12 py-10 border-b border-[var(--theme-border)] bg-[var(--theme-accent)] flex items-center justify-between">
+              <div className="px-6 py-5 sm:px-12 sm:py-10 border-b border-[var(--theme-border)] bg-[var(--theme-accent)] flex items-center justify-between">
                 <div className="flex items-center gap-6">
                   <div className="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
                     <ShoppingCart size={28} />
@@ -181,7 +181,7 @@ export default function WalkInPOS() {
                 </div>
               </div>
 
-              <div className="p-12 space-y-12">
+              <div className="p-6 sm:p-12 space-y-6 sm:space-y-12">
                 {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl p-6 text-[10px] font-black uppercase tracking-widest text-center animate-shake">{error}</div>}
 
                 <div className="grid grid-cols-2 gap-6">

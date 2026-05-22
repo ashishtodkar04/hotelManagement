@@ -7,7 +7,7 @@ const useStore = create((set) => ({
   isStaff: false,
   isAuthLoading: true,
   isAdminLoading: true,
-  hotelConfig: { hotelName: "L'Elite", tagline: "Exquisite Dining" },
+  hotelConfig: { hotelName: "Lelite", tagline: "Exquisite Dining" },
   chatMessages: [],
 
   fetchConfig: async () => {

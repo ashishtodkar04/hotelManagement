@@ -78,7 +78,7 @@ export default function ChefDashboard() {
             </div>
           </div>
           
-          <div className="glass px-10 py-6 flex items-center gap-12 shadow-2xl border-2 border-blue-600/5">
+          <div className="glass px-6 sm:px-10 py-4 sm:py-6 flex flex-row items-center justify-around gap-6 sm:gap-12 w-full lg:w-auto shadow-2xl border-2 border-blue-600/5">
             <div className="text-center">
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Transmission Queue</p>
               <div className="flex items-center gap-3">

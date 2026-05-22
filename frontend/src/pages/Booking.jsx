@@ -141,17 +141,17 @@ export default function Booking() {
               )}
             </div>
             
-            <div className="bg-blue-600/5 rounded-[2.5rem] p-10 border border-blue-600/10 flex items-start gap-6">
+            <div className="bg-blue-600/5 rounded-[2.5rem] p-6 md:p-10 border border-blue-600/10 flex items-start gap-6">
                <Info size={24} className="text-blue-600 shrink-0" />
                <p className="text-xs font-bold text-blue-600/80 leading-relaxed tracking-tight">
-                 Namaste! An advance deposit of ₹200 is required to secure your placement. This will be adjusted in your final bill.
+                 Namaste! An advance deposit of ₹500 is required to secure your placement. This will be adjusted in your final bill.
                </p>
             </div>
           </div>
 
           {/* Form Selection (Right) */}
           <div className="lg:col-span-7 animate-fade-in" style={{ animationDelay: '0.8s' }}>
-            <div className="glass p-12 md:p-20 shadow-2xl relative overflow-hidden group">
+            <div className="glass p-6 sm:p-12 md:p-20 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
                 <Calendar size={120} />
               </div>
@@ -163,7 +163,7 @@ export default function Booking() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
                   <div className="space-y-4">
                     <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-4">{t('date_label')}</label>
                     <div className="relative group/field">
@@ -193,7 +193,7 @@ export default function Booking() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
                   <div className="space-y-4">
                     <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-4">{t('guest_label')}</label>
                     <div className="relative group/field">

@@ -563,7 +563,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-300">
                       <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white">!</div>
-                      Audit {HOTEL_NAME} PRO App State
+                      Audit VeriPay SMS Monitor State
                     </div>
                   </div>
                 </div>
@@ -693,13 +693,13 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-12">
-          <div className="lg:col-span-2 glass p-12 h-[550px] border border-blue-600/5">
-            <div className="flex items-center justify-between mb-16">
+          <div className="lg:col-span-2 glass p-6 sm:p-12 h-[350px] sm:h-[450px] lg:h-[550px] border border-blue-600/5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-10 sm:mb-16">
               <div>
                 <h2 className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 mb-2">Revenue Transmission</h2>
                 <p className="text-xl font-black tracking-tight">Sovereign Yield Trajectory</p>
               </div>
-              <div className="flex gap-8">
+              <div className="flex flex-wrap gap-4 sm:gap-8">
                 <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest"><div className="w-3 h-3 rounded-full bg-blue-600 shadow-lg shadow-blue-500/50" /> Aggregate Revenue</div>
               </div>
             </div>
@@ -737,12 +737,12 @@ export default function AdminDashboard() {
               </div>
               <div className="flex items-center gap-2 text-[9px] font-black text-blue-600 uppercase tracking-widest"><ShieldCheck size={12} /> Live Audit</div>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-4 sm:gap-6">
               {tables.map((t_item) => (
                 <button
                   key={t_item.id}
                   onClick={() => updateTable(t_item.id, t_item.status === 'available' ? 'occupied' : 'available')}
-                  className={`p-8 rounded-[3rem] border-2 transition-all active:scale-95 text-center relative overflow-hidden group shadow-xl ${t_item.status === 'occupied'
+                  className={`p-4 sm:p-8 rounded-[1.5rem] sm:rounded-[3rem] border-2 transition-all active:scale-95 text-center relative overflow-hidden group shadow-xl ${t_item.status === 'occupied'
                       ? 'bg-rose-500/5 border-rose-500/40 text-rose-500 shadow-rose-500/5'
                       : t_item.status === 'reserved'
                         ? 'bg-amber-500/5 border-amber-500/40 text-amber-500 shadow-amber-500/5'

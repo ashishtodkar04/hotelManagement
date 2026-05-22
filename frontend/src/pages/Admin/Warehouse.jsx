@@ -194,7 +194,7 @@ export default function Warehouse() {
             { label: 'Low Stock',     value: lowCount,             color: 'text-amber-500' },
             { label: 'Total Cost',    value: `₹${totalCost.toLocaleString()}`, color: 'text-blue-600' },
           ].map(k => (
-            <div key={k.label} className="glass p-6 md:p-8 flex flex-col items-center text-center hover:-translate-y-1 transition-all">
+            <div key={k.label} className="glass p-4 md:p-8 flex flex-col items-center text-center hover:-translate-y-1 transition-all">
               <div className={`text-2xl md:text-4xl font-black font-serif tracking-tighter mb-2 ${k.color}`}>{k.value}</div>
               <div className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] md:tracking-[0.4em]">{k.label}</div>
             </div>
@@ -213,7 +213,7 @@ export default function Warehouse() {
           </div>
         )}
         {lowCount > 0 && (
-          <div className="mb-8 bg-amber-500/10 border border-amber-500/20 rounded-3xl px-10 py-6 flex items-center gap-6 animate-fade-in">
+          <div className="mb-8 bg-amber-500/10 border border-amber-500/20 rounded-3xl px-6 py-4 md:px-10 md:py-6 flex items-center gap-6 animate-fade-in">
             <AlertTriangle size={28} className="text-amber-500 flex-shrink-0" />
             <div>
               <p className="font-black text-amber-500 text-sm uppercase tracking-widest">{lowCount} Item{lowCount > 1 ? 's' : ''} Running Low</p>
@@ -225,7 +225,7 @@ export default function Warehouse() {
 
         {/* ── Add / Edit Form ─────────────────────────────────── */}
         {(showAdd || editing) && isAdmin && (
-          <div className="glass p-12 mb-16 animate-fade-in relative overflow-hidden group">
+          <div className="glass p-6 md:p-12 mb-16 animate-fade-in relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
               <Package size={120} />
             </div>
@@ -239,7 +239,7 @@ export default function Warehouse() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12">
               <div className="lg:col-span-2">
                 <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 ml-1">Asset Name / Description</label>
                 <input type="text" placeholder="e.g. Fresh Tomatoes, Gas Cylinder, Electricity Bill"
@@ -300,7 +300,7 @@ export default function Warehouse() {
               {t === 'all' ? 'ALL TYPES' : t.toUpperCase()}
             </button>
           ))}
-          <div className="ml-auto flex flex-wrap gap-3">
+          <div className="w-full lg:w-auto lg:ml-auto flex flex-wrap gap-3 mt-4 lg:mt-0">
             <div className="relative">
               <Calendar size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input 
