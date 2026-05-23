@@ -1171,15 +1171,33 @@ router.post('/api/sms-monitor/verify-payment', async (req, res) => {
         await conn.commit();
 
         if (isApproved && booking.email) {
+            let pdfBuffer = null;
+            try {
+                if (isFinalMode) {
+                    const { generateBillPDF } = require('../services/pdfService');
+                    const [orders] = await conn.execute(`
+                        SELECT o.id, d.name, d.price, o.quantity, o.total_price 
+                        FROM orders o JOIN dishes d ON o.dish_id = d.id 
+                        WHERE o.booking_id = ?
+                    `, [bookingId]);
+                    
+                    const totalPaid = (booking.final_bill_expected || 0) + (booking.adv_paid || 0);
+                    const updatedBooking = { ...booking, paid_amount: (booking.final_bill_expected || 0), bill_amount: totalPaid, id: bookingId };
+                    pdfBuffer = await generateBillPDF(updatedBooking, orders);
+                }
+            } catch (pdfErr) {
+                console.error("[PAYMENT-SERVICE] PDF Generation failed:", pdfErr.message);
+            }
+
             sendBookingConfirmation(booking.email, {
                 bookingRef: booking.booking_ref,
                 date: new Date(booking.booking_date).toLocaleDateString(),
                 time: booking.time_slot,
                 table: booking.table_number,
                 guests: booking.guests,
-                amount: amt,
-                type: 'advance'
-            }).catch(e => console.error("[EMAIL-SERVICE] SMS Monitor verification email failure:", e.message));
+                amount: isFinalMode ? (booking.final_bill_expected || 0) : amt,
+                type: isFinalMode ? 'final' : 'advance'
+            }, pdfBuffer).catch(e => console.error("[EMAIL-SERVICE] SMS Monitor verification email failure:", e.message));
         }
 
         res.json({ success: true });

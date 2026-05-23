@@ -158,6 +158,31 @@ async function handleMatch(conn, booking, amount, transactionId, type, io) {
     // Send Email
     if (booking.user_email || booking.email) {
         const targetEmail = booking.user_email || booking.email;
+        let pdfBuffer = null;
+
+        try {
+            if (!isAdvance) {
+                const { generateBillPDF } = require('./pdfService');
+                const [orders] = await conn.execute(`
+                    SELECT o.id, d.name, d.price, o.quantity, o.total_price 
+                    FROM orders o JOIN dishes d ON o.dish_id = d.id 
+                    WHERE o.booking_id = ?
+                `, [booking.id]);
+                
+                // We need to pass bill_amount inside the booking for the PDF generator
+                // In handleMatch, we update bill_amount in DB but `booking` object is the OLD snapshot.
+                // We must update the `booking` object with the new totals calculated above.
+                const newFinalPaid = parseFloat((Number(booking.paid_amount || 0) + exactAmount).toFixed(2));
+                const totalPaidOverall = parseFloat((Number(booking.adv_paid || 0) + newFinalPaid).toFixed(2));
+                
+                const updatedBooking = { ...booking, paid_amount: newFinalPaid, bill_amount: totalPaidOverall };
+                
+                pdfBuffer = await generateBillPDF(updatedBooking, orders);
+            }
+        } catch (pdfErr) {
+            console.error("[PAYMENT-SERVICE] PDF Generation failed:", pdfErr.message);
+        }
+
         sendBookingConfirmation(targetEmail, {
             bookingRef: booking.booking_ref,
             date: new Date(booking.booking_date).toLocaleDateString(),
@@ -166,7 +191,7 @@ async function handleMatch(conn, booking, amount, transactionId, type, io) {
             guests: booking.guests,
             amount: amount,
             type: type
-        }).catch(e => console.error("[PAYMENT-SERVICE] Email failed:", e.message));
+        }, pdfBuffer).catch(e => console.error("[PAYMENT-SERVICE] Email failed:", e.message));
     }
 
     return { 

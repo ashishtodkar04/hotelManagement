@@ -562,15 +562,30 @@ router.post('/pay-at-counter', requireAdmin, async (req, res) => {
         await db.execute('UPDATE restaurant_tables SET status="available" WHERE table_name=?', [booking.table_number]);
 
         if (booking.email) {
+            let pdfBuffer = null;
+            try {
+                const { generateBillPDF } = require('../services/pdfService');
+                const [orders] = await db.execute(`
+                    SELECT o.id, d.name, d.price, o.quantity, o.total_price 
+                    FROM orders o JOIN dishes d ON o.dish_id = d.id 
+                    WHERE o.booking_id = ?
+                `, [bookingId]);
+                
+                const updatedBooking = { ...booking, paid_amount: remainingBalance, bill_amount: totalToPay };
+                pdfBuffer = await generateBillPDF(updatedBooking, orders);
+            } catch (pdfErr) {
+                console.error("[PAYMENT-SERVICE] PDF Generation failed:", pdfErr.message);
+            }
+
             sendBookingConfirmation(booking.email, {
                 bookingRef: booking.booking_ref,
                 date: new Date(booking.booking_date).toLocaleDateString(),
                 time: booking.time_slot,
                 table: booking.table_number,
                 guests: booking.guests,
-                amount: booking.bill_amount,
+                amount: totalToPay,
                 type: 'final'
-            }).catch(e => console.error("[EMAIL-SERVICE] Pay at counter email failure:", e.message));
+            }, pdfBuffer).catch(e => console.error("[EMAIL-SERVICE] Pay at counter email failure:", e.message));
         }
 
         res.json({ success: true });
@@ -685,15 +700,33 @@ router.post('/verify-payment', requireAdmin, async (req, res) => {
         await conn.commit();
 
         if (isApproved && booking.email) {
+            let pdfBuffer = null;
+            try {
+                if (isFinalMode) {
+                    const { generateBillPDF } = require('../services/pdfService');
+                    const [orders] = await conn.execute(`
+                        SELECT o.id, d.name, d.price, o.quantity, o.total_price 
+                        FROM orders o JOIN dishes d ON o.dish_id = d.id 
+                        WHERE o.booking_id = ?
+                    `, [bookingId]);
+                    
+                    const totalPaid = (booking.final_bill_expected || 0) + (booking.adv_paid || 0);
+                    const updatedBooking = { ...booking, paid_amount: (booking.final_bill_expected || 0), bill_amount: totalPaid, id: bookingId };
+                    pdfBuffer = await generateBillPDF(updatedBooking, orders);
+                }
+            } catch (pdfErr) {
+                console.error("[PAYMENT-SERVICE] PDF Generation failed:", pdfErr.message);
+            }
+
             sendBookingConfirmation(booking.email, {
                 bookingRef: booking.booking_ref,
                 date: new Date(booking.booking_date).toLocaleDateString(),
                 time: booking.time_slot,
                 table: booking.table_number,
                 guests: booking.guests,
-                amount: amt,
-                type: 'advance'
-            }).catch(e => console.error("[EMAIL-SERVICE] Manual verification email failure:", e.message));
+                amount: isFinalMode ? (booking.final_bill_expected || 0) : amt,
+                type: isFinalMode ? 'final' : 'advance'
+            }, pdfBuffer).catch(e => console.error("[EMAIL-SERVICE] Manual verification email failure:", e.message));
         }
 
         res.json({ success: true });

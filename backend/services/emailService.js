@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-const sendBookingConfirmation = async (userEmail, bookingDetails) => {
+const sendBookingConfirmation = async (userEmail, bookingDetails, pdfBuffer = null) => {
     const { bookingRef, date, time, table, guests, amount, type } = bookingDetails;
 
     const isAdvance = type === 'advance';
@@ -83,12 +83,24 @@ const sendBookingConfirmation = async (userEmail, bookingDetails) => {
     `;
 
     try {
-        await transporter.sendMail({
+        const mailOptions = {
             from: `"${HOTEL_NAME}" <${process.env.EMAIL}>`,
             to: userEmail,
             subject: subject,
             html: htmlContent
-        });
+        };
+
+        if (pdfBuffer) {
+            mailOptions.attachments = [
+                {
+                    filename: `Invoice_${bookingRef}.pdf`,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf'
+                }
+            ];
+        }
+
+        await transporter.sendMail(mailOptions);
         console.log(`[EMAIL] Confirmation sent to ${userEmail}`);
     } catch (err) {
         console.error(`[EMAIL] Failed to send to ${userEmail}:`, err.message);
