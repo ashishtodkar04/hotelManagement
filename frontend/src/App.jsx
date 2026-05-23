@@ -26,6 +26,7 @@ import BookingHistory from './pages/Admin/BookingHistory';
 import ChatWidget from './components/ChatWidget';
 import AdminChat from './pages/Admin/AdminChat';
 import AdminChatNotificationManager from './components/AdminChatNotificationManager';
+import PrintBill from './pages/Admin/PrintBill';
 
 function AppContent() {
   const { fetchConfig, checkAuth, checkAdminAuth, isAuthLoading, isAdminLoading } = useStore();
@@ -82,6 +83,7 @@ function AppContent() {
           <Route path="/admin/warehouse" element={<Warehouse />} />
           <Route path="/admin/history" element={<BookingHistory />} />
           <Route path="/admin/chat" element={<AdminChat />} />
+          <Route path="/admin/print/:bookingId" element={<PrintBill />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -609,6 +609,37 @@ router.delete('/delete/:id', requireAdmin, async (req, res) => {
     }
 });
 
+router.get('/print-bill/:bookingId', requireAdmin, async (req, res) => {
+    try {
+        const { bookingId } = req.params;
+        // Search in both bookings and booking_history
+        const [bookings] = await db.execute(`
+            SELECT b.id, b.user_id, b.booking_ref, b.booking_date, b.time_slot, b.guests, b.table_number, 
+                   b.status, b.adv_paid, b.bill_amount, b.paid_amount, b.discount, b.staff_name,
+                   u.name as user_name, u.email as user_email, u.phone as user_phone
+            FROM bookings b LEFT JOIN users u ON b.user_id = u.id WHERE b.id = ?
+            UNION ALL
+            SELECT bh.id, bh.user_id, bh.booking_ref, bh.booking_date, bh.time_slot, bh.guests, bh.table_number, 
+                   bh.status, bh.adv_paid, bh.bill_amount, bh.paid_amount, bh.discount, bh.staff_name,
+                   u.name as user_name, u.email as user_email, u.phone as user_phone
+            FROM booking_history bh LEFT JOIN users u ON bh.user_id = u.id WHERE bh.id = ?
+        `, [bookingId, bookingId]);
+
+        if (bookings.length === 0) return res.status(404).json({ success: false, error: 'Booking not found' });
+        const booking = bookings[0];
+
+        const [orders] = await db.execute(`
+            SELECT o.id, d.name, d.price, o.quantity, o.total_price 
+            FROM orders o JOIN dishes d ON o.dish_id = d.id 
+            WHERE o.booking_id = ?
+        `, [bookingId]);
+
+        res.json({ success: true, booking, orders });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 router.post('/verify-payment', requireAdmin, async (req, res) => {
     const conn = await db.getConnection();
     try {

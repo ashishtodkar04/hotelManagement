@@ -28,7 +28,8 @@ import {
   SearchX,
   X,
   Shield,
-  Trash2
+  Trash2,
+  Printer
 } from 'lucide-react';
 
 
@@ -1084,6 +1085,11 @@ export default function AdminDashboard() {
                             {b.booking_status === 'awaiting_final_payment' && (
                                <button onClick={() => payAtCounter(b.id)} className="bg-emerald-600 text-white font-black py-3 px-6 rounded-xl text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg">PAY AT COUNTER</button>
                             )}
+                            {(b.booking_status === 'completed' || b.booking_status === 'awaiting_final_payment' || b.booking_status === 'seated') && (
+                               <button onClick={() => window.open(`/admin/print/${b.id}`, '_blank')} className="btn-secondary py-3 px-6 text-[9px] flex items-center gap-2 mt-2">
+                                 <Printer size={12} /> PRINT BILL
+                               </button>
+                            )}
                         </div>
                       </td>
                     </tr>
@@ -1131,6 +1137,11 @@ export default function AdminDashboard() {
                     )}
                     {b.booking_status === 'awaiting_final_payment' && (
                        <button onClick={() => payAtCounter(b.id)} className="bg-emerald-600 text-white font-black py-3 px-4 rounded-xl text-[8px] uppercase tracking-widest">PAY</button>
+                    )}
+                    {(b.booking_status === 'completed' || b.booking_status === 'awaiting_final_payment' || b.booking_status === 'seated') && (
+                       <button onClick={() => window.open(`/admin/print/${b.id}`, '_blank')} className="btn-secondary py-3 px-4 text-[8px] flex items-center gap-2">
+                         <Printer size={10} /> PRINT
+                       </button>
                     )}
                   </div>
                 </div>

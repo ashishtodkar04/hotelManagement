@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { Search, Filter, Users, FileText, Activity } from 'lucide-react';
+import { Search, Filter, Users, FileText, Activity, Printer } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import useStore from '../../store/useStore';
 
@@ -158,9 +158,12 @@ export default function BookingHistory() {
                           b.status === 'completed' ? 'emerald' :
                           b.status === 'cancelled' ? 'rose' :
                           b.status === 'confirmed' ? 'blue' : 'amber'
-                        } py-2 px-6 shadow-sm`}>
+                        } py-2 px-6 shadow-sm mb-2 block w-max ml-auto`}>
                           {b.status.toUpperCase()}
                         </span>
+                        <button onClick={() => window.open(`/admin/print/${b.id}`, '_blank')} className="btn-secondary py-2 px-4 text-[8px] flex items-center gap-2 w-max ml-auto shadow-sm">
+                          <Printer size={10} /> PRINT BILL
+                        </button>
                       </td>
                     </tr>
                   ))
