@@ -41,7 +41,7 @@ async function processIncomingPayment({ amount, transactionId, source, rawText, 
 
         // 2. Try to match as Advance Payment (Locked via FOR UPDATE)
         const [advanceMatches] = await conn.execute(`
-            SELECT b.*, u.email as user_email
+            SELECT b.*, u.email as user_email, u.phone as user_phone
             FROM bookings b
             LEFT JOIN users u ON b.user_id = u.id
             WHERE b.payment_verified = 0
@@ -62,7 +62,7 @@ async function processIncomingPayment({ amount, transactionId, source, rawText, 
 
         // 3. Try to match as Final Bill (Locked via FOR UPDATE)
         const [finalMatches] = await conn.execute(`
-            SELECT b.*, u.email as user_email
+            SELECT b.*, u.email as user_email, u.phone as user_phone
             FROM bookings b
             LEFT JOIN users u ON b.user_id = u.id
             WHERE b.final_payment_verified = 0
@@ -192,6 +192,17 @@ async function handleMatch(conn, booking, amount, transactionId, type, io) {
             amount: amount,
             type: type
         }, pdfBuffer).catch(e => console.error("[PAYMENT-SERVICE] Email failed:", e.message));
+    }
+
+    // Queue SMS via Android Gateway
+    if (booking.user_phone || booking.phone) {
+        const phone = booking.user_phone || booking.phone;
+        const msg = isAdvance 
+            ? `Hello! Your advance payment of ₹${amount} for Booking ${booking.booking_ref} at ${process.env.HOTEL_NAME || 'our restaurant'} is confirmed.`
+            : `Hello! Your final payment of ₹${amount} for Booking ${booking.booking_ref} at ${process.env.HOTEL_NAME || 'our restaurant'} is confirmed. Thank you for dining with us!`;
+        
+        const { queueOutgoingSms } = require('./smsGatewayService');
+        queueOutgoingSms(phone, msg).catch(e => console.error("[PAYMENT-SERVICE] SMS Queue failed:", e.message));
     }
 
     return { 

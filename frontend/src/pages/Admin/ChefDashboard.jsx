@@ -259,9 +259,20 @@ function TicketCard({ order, onUpdateTicket }) {
               }
               <div>
                 <p className="text-base font-black text-[var(--theme-text)] leading-tight tracking-tight">{item.name}</p>
-                <span className="px-3 py-1 bg-[var(--theme-panel)] rounded-lg text-[9px] font-black text-blue-600 uppercase tracking-widest border border-blue-600/10">
-                  ×{item.quantity}
-                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="px-3 py-1 bg-[var(--theme-panel)] rounded-lg text-[9px] font-black text-blue-600 uppercase tracking-widest border border-blue-600/10">
+                    ×{item.quantity}
+                  </span>
+                  {item.status === 'preparing' && item.prep_start_time && (
+                    <KDSTimer startTime={item.prep_start_time} />
+                  )}
+                  {item.status === 'ready' && item.prep_start_time && item.prep_end_time && (
+                    <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded-md">
+                      <Clock size={10} /> 
+                      {Math.floor((new Date(item.prep_end_time) - new Date(item.prep_start_time)) / 60000)}m
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             {/* Per-item status dot */}
@@ -298,6 +309,38 @@ function TicketCard({ order, onUpdateTicket }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function KDSTimer({ startTime }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startTime) return;
+    const update = () => {
+      const now = new Date();
+      const start = new Date(startTime);
+      const diffMs = Math.max(0, now - start);
+      setElapsed(Math.floor(diffMs / 1000));
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  
+  // Flash red if it's been preparing for over 15 minutes
+  const isOverdue = mins >= 15;
+
+  return (
+    <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${
+      isOverdue ? 'bg-rose-500/20 text-rose-500 animate-pulse' : 'bg-amber-500/10 text-amber-500'
+    }`}>
+      <Clock size={10} />
+      {mins}:{secs.toString().padStart(2, '0')}
     </div>
   );
 }

@@ -114,8 +114,10 @@ app.get('/api/hotel-config', (req, res) => {
     res.json({ success: true, hotelName: HOTEL_NAME, name: HOTEL_NAME, tagline: HOTEL_TAGLINE, phone: HOTEL_PHONE, year: HOTEL_YEAR });
 });
 
+const inventoryRoutes = require('./routes/inventory.routes');
 app.use('/', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/inventory', inventoryRoutes);
 
 // ================= SOCKET.IO CHAT =================[cite: 1]
 const onlineUsers = new Map(); // userId -> Set of socket.ids

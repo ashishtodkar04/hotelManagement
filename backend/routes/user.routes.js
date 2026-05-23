@@ -82,7 +82,7 @@ router.get('/hotel-config', (req, res) => {
 router.post('/api/recommendations', (req, res) => {
     const userId = req.session?.user?.id || 0;
 
-    console.log("Generating recommendations for User ID:", userId);
+    // Removed logging
 
     const py = spawn('python', ['python/recommendation.py', String(userId)]);
 
@@ -437,6 +437,11 @@ router.post('/booking', requireUser, validateBooking, async (req, res) => {
         await conn.commit();
         req.session.bookingId = bookingId;
         req.io.emit('booking_update', { bookingId, status: 'pending' });
+        
+        if (Array.isArray(cart) && cart.length > 0) {
+            const { deductInventoryForOrders } = require('../services/inventoryService');
+            deductInventoryForOrders(cart.map(i => ({ dishId: i.id, quantity: i.qty })));
+        }
 
         return res.json({ success: true, id: bookingId, bookingRef });
     } catch (err) {

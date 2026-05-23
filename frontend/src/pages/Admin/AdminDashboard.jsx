@@ -29,7 +29,13 @@ import {
   X,
   Shield,
   Trash2,
-  Printer
+  Printer,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  BrainCircuit,
+  TerminalSquare,
+  Flame
 } from 'lucide-react';
 
 
@@ -102,8 +108,9 @@ export default function AdminDashboard() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [checkoutModal, setCheckoutModal] = useState(null);
   const [checkoutDiscount, setCheckoutDiscount] = useState('');
-
-
+  
+  const [showSmsModal, setShowSmsModal] = useState(false);
+  const [smsData, setSmsData] = useState({ phone: '', message: '' });
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -148,6 +155,7 @@ export default function AdminDashboard() {
         setStatsData({
           dailyRevenue: sr.data?.dailyRevenue || [],
           popularDishes: sr.data?.popularDishes || [],
+          busiestHours: sr.data?.busiestHours || [],
           todayStats: sr.data?.todayStats || {
             onlineRevenue: 0,
             cashRevenue: 0,
@@ -256,9 +264,24 @@ export default function AdminDashboard() {
     } catch { alert('Identity Verification Error'); }
   };
 
-  const openCheckout = (booking) => {
+  const openCheckout = async (booking) => {
     setCheckoutDiscount('');
-    setCheckoutModal(booking);
+    try {
+      const res = await api.get(`/api/admin/checkout-preview/${booking.id}`);
+      if (res.data.success) {
+        setCheckoutModal({
+          ...booking,
+          subtotal: res.data.subtotal,
+          gst: res.data.gst,
+          paperlessDiscount: res.data.paperlessDiscount,
+          loyaltyDiscount: res.data.loyaltyDiscount,
+          loyaltyTier: res.data.loyaltyTier,
+          adv_paid: res.data.advPaid
+        });
+      }
+    } catch (err) {
+      alert('Failed to load checkout preview');
+    }
   };
 
   const executeCheckout = async () => {
@@ -270,7 +293,7 @@ export default function AdminDashboard() {
       });
       if (res.data.breakdown) {
         const bd = res.data.breakdown;
-        alert(`✅ Settlement Authorized\n\nSubtotal: ₹${bd.subtotal.toFixed(2)}\nGST (18%): ₹${bd.gst.toFixed(2)}\nDiscount: -₹${bd.customDiscount.toFixed(2)}\nPaperless Discount: -₹${bd.paperlessDiscount.toFixed(2)}\n─────────────\nTotal: ₹${bd.totalPayable.toFixed(2)}\nAdvance Paid: -₹${bd.advPaid.toFixed(2)}\n─────────────\nFinal Due: ₹${bd.finalBillDue.toFixed(2)}`);
+        alert(`✅ Settlement Authorized\n\nSubtotal: ₹${bd.subtotal.toFixed(2)}\nGST (18%): ₹${bd.gst.toFixed(2)}\nLoyalty Discount (${bd.loyaltyTier}): -₹${bd.loyaltyDiscount.toFixed(2)}\nDiscount: -₹${bd.customDiscount.toFixed(2)}\nPaperless Discount: -₹${bd.paperlessDiscount.toFixed(2)}\n─────────────\nTotal: ₹${bd.totalPayable.toFixed(2)}\nAdvance Paid: -₹${bd.advPaid.toFixed(2)}\n─────────────\nFinal Due: ₹${bd.finalBillDue.toFixed(2)}`);
       }
       setCheckoutModal(null);
       fetchData(true);
@@ -368,7 +391,18 @@ export default function AdminDashboard() {
     }
   };
 
-
+  const sendManualSms = async (e) => {
+    e.preventDefault();
+    if (!smsData.phone || !smsData.message) return;
+    try {
+      await api.post('/api/admin/send-sms', smsData);
+      setShowSmsModal(false);
+      setSmsData({ phone: '', message: '' });
+      alert('SMS queued for delivery via Gateway');
+    } catch (err) {
+      alert('Failed to queue SMS');
+    }
+  };
   if (isAdminLoading) return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--theme-bg)]">
       <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -790,6 +824,85 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* --- AI-DRIVEN ANALYTICS WIDGET --- */}
+        <div className="glass p-8 md:p-12 border-2 border-indigo-600/20 shadow-2xl shadow-indigo-600/5 mt-12 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-1000 pointer-events-none">
+             <BrainCircuit size={160} className="text-indigo-600" />
+          </div>
+          <div className="flex flex-col lg:flex-row gap-12 relative z-10">
+             <div className="flex-1 space-y-8">
+               <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+                   <Sparkles size={24} />
+                 </div>
+                 <div>
+                   <h2 className="text-2xl font-black text-[var(--theme-text)] font-serif italic tracking-tight">AI-Driven Insights</h2>
+                   <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">Algorithmic Performance Analysis</p>
+                 </div>
+               </div>
+               
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                 <div className="bg-[var(--theme-accent)] p-6 rounded-[2rem] border border-[var(--theme-border)]">
+                   <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                     <Flame size={12} className="text-rose-500" /> Top Selling Dishes
+                   </h3>
+                   <div className="space-y-3">
+                     {(statsData.popularDishes || []).slice(0, 3).map((d, i) => (
+                       <div key={i} className="flex justify-between items-center text-sm">
+                         <span className="font-black text-[var(--theme-text)] truncate">{d.name}</span>
+                         <span className="font-black text-blue-600 bg-blue-600/10 px-3 py-1 rounded-lg text-[10px]">x{d.count}</span>
+                       </div>
+                     ))}
+                     {(!statsData.popularDishes || statsData.popularDishes.length === 0) && (
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center mt-4 py-2">Insufficient Data</p>
+                     )}
+                   </div>
+                 </div>
+
+                 <div className="bg-[var(--theme-accent)] p-6 rounded-[2rem] border border-[var(--theme-border)]">
+                   <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                     <Clock size={12} className="text-amber-500" /> Peak Operating Hours
+                   </h3>
+                   <div className="space-y-3">
+                     {(statsData.busiestHours || []).slice(0, 3).map((h, i) => (
+                       <div key={i} className="flex justify-between items-center text-sm">
+                         <span className="font-black text-[var(--theme-text)]">
+                           {h.hour === 0 ? '12 AM' : h.hour < 12 ? `${h.hour} AM` : h.hour === 12 ? '12 PM' : `${h.hour - 12} PM`}
+                         </span>
+                         <span className="font-black text-amber-600 bg-amber-500/10 px-3 py-1 rounded-lg text-[10px]">{h.count} Orders</span>
+                       </div>
+                     ))}
+                     {(!statsData.busiestHours || statsData.busiestHours.length === 0) && (
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center mt-4 py-2">Insufficient Data</p>
+                     )}
+                   </div>
+                 </div>
+               </div>
+             </div>
+
+             <div className="lg:w-1/3 bg-indigo-600/5 p-8 rounded-[2rem] border border-indigo-600/20 flex flex-col justify-between">
+                <div>
+                   <h3 className="text-[11px] font-black text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                     <TerminalSquare size={14} /> System Synthesis
+                   </h3>
+                   <p className="text-sm font-bold text-slate-400 leading-relaxed">
+                     {statsData.popularDishes?.length > 0 && statsData.busiestHours?.length > 0 ? (
+                       <>
+                         Based on recent metrics, <span className="text-[var(--theme-text)] font-black">"{statsData.popularDishes[0].name}"</span> is driving significant volume. 
+                         Coupled with peak activity around <span className="text-[var(--theme-text)] font-black">{statsData.busiestHours[0].hour}:00</span>, we recommend optimizing kitchen prep times for this item prior to peak rush to maximize table turnover rates.
+                       </>
+                     ) : (
+                       "Awaiting sufficient data volume to generate actionable algorithmic insights."
+                     )}
+                   </p>
+                </div>
+                <button className="mt-8 w-full bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2">
+                  <RefreshCw size={14} className="hover:animate-spin" /> Regenerate Insights
+                </button>
+             </div>
+          </div>
+        </div>
+
         {/* --- PROFESSIONAL FINANCIAL SUITE --- */}
         <div className="space-y-12">
           {/* A. Monthly Financial Audit Graph (Secondary) */}
@@ -1086,9 +1199,14 @@ export default function AdminDashboard() {
                                <button onClick={() => payAtCounter(b.id)} className="bg-emerald-600 text-white font-black py-3 px-6 rounded-xl text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg">PAY AT COUNTER</button>
                             )}
                             {(b.booking_status === 'completed' || b.booking_status === 'awaiting_final_payment' || b.booking_status === 'seated') && (
-                               <button onClick={() => window.open(`/admin/print/${b.id}`, '_blank')} className="btn-secondary py-3 px-6 text-[9px] flex items-center gap-2 mt-2">
-                                 <Printer size={12} /> PRINT BILL
-                               </button>
+                               <div className="flex flex-col gap-2 w-full mt-2">
+                                 <button onClick={() => window.open(`/admin/print/${b.id}`, '_blank')} className="btn-secondary py-3 px-6 text-[9px] flex items-center justify-center gap-2">
+                                   <Printer size={12} /> PRINT BILL
+                                 </button>
+                                 <button onClick={() => { setSmsData({ phone: b.phone || '', message: '' }); setShowSmsModal(true); }} className="btn-secondary py-3 px-6 text-[9px] flex items-center justify-center gap-2 border-indigo-500/30 text-indigo-500 hover:bg-indigo-500/10">
+                                   <MessageSquare size={12} /> SEND SMS
+                                 </button>
+                               </div>
                             )}
                         </div>
                       </td>
@@ -1235,16 +1353,22 @@ export default function AdminDashboard() {
                   <span className="text-slate-400 font-bold">GST (18%)</span>
                   <span className="font-black text-[var(--theme-text)]">₹{(Number(checkoutModal.subtotal || 0) * 0.18).toFixed(2)}</span>
                 </div>
+                {checkoutModal.loyaltyDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-indigo-500">
+                    <span className="font-bold flex items-center gap-2"><Sparkles size={14} /> Loyalty ({checkoutModal.loyaltyTier})</span>
+                    <span className="font-black">-₹{Number(checkoutModal.loyaltyDiscount).toFixed(2)}</span>
+                  </div>
+                )}
                 {parseFloat(checkoutDiscount) > 0 && (
                   <div className="flex justify-between text-sm text-emerald-500">
-                    <span className="font-bold">Discount</span>
+                    <span className="font-bold">Manual Discount</span>
                     <span className="font-black">-₹{parseFloat(checkoutDiscount).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="border-t border-[var(--theme-border)] pt-4 flex justify-between text-lg">
                   <span className="font-black text-[var(--theme-text)]">Estimated Total</span>
                   <span className="font-black text-blue-600">
-                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0)).toFixed(2)}
+                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - (Number(checkoutModal.loyaltyDiscount) || 0)).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs text-slate-400">
@@ -1254,9 +1378,9 @@ export default function AdminDashboard() {
                 <div className="border-t border-[var(--theme-border)] pt-3 flex justify-between text-xl">
                   <span className="font-black text-[var(--theme-text)]">Final Due</span>
                   <span className={`font-black font-serif tracking-tighter ${
-                    Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - Number(checkoutModal.adv_paid || 0)) > 0 ? 'text-rose-500' : 'text-emerald-500'
+                    Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - (Number(checkoutModal.loyaltyDiscount) || 0) - Number(checkoutModal.adv_paid || 0)) > 0 ? 'text-rose-500' : 'text-emerald-500'
                   }`}>
-                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - Number(checkoutModal.adv_paid || 0)).toFixed(2)}
+                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - (Number(checkoutModal.loyaltyDiscount) || 0) - Number(checkoutModal.adv_paid || 0)).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -1320,6 +1444,63 @@ export default function AdminDashboard() {
                   Confirm Delete
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* SMS Modal */}
+        {showSmsModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowSmsModal(false)} />
+            <div className="relative bg-[var(--theme-panel)] w-full max-w-md rounded-[2rem] border border-[var(--theme-border)] shadow-2xl p-8 animate-slide-up">
+              <button 
+                onClick={() => setShowSmsModal(false)}
+                className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                  <MessageSquare size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black font-serif italic tracking-tighter text-[var(--theme-text)]">Send SMS</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gateway Messenger</p>
+                </div>
+              </div>
+
+              <form onSubmit={sendManualSms} className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 block">Phone Number</label>
+                  <input 
+                    type="tel"
+                    required
+                    value={smsData.phone}
+                    onChange={e => setSmsData({...smsData, phone: e.target.value})}
+                    placeholder="+91..."
+                    className="w-full bg-[var(--theme-input)] border border-[var(--theme-border)] text-[var(--theme-text)] px-4 py-4 rounded-xl focus:border-indigo-500 outline-none text-sm font-black tracking-widest transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 block">Message</label>
+                  <textarea 
+                    required
+                    rows="4"
+                    value={smsData.message}
+                    onChange={e => setSmsData({...smsData, message: e.target.value})}
+                    placeholder="Enter message..."
+                    className="w-full bg-[var(--theme-input)] border border-[var(--theme-border)] text-[var(--theme-text)] px-4 py-4 rounded-xl focus:border-indigo-500 outline-none text-sm resize-none transition-all"
+                  />
+                </div>
+
+                <div className="pt-4">
+                  <button type="submit" className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-2">
+                    <MessageSquare size={14} /> Send Message
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

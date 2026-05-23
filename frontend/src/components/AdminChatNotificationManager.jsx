@@ -64,7 +64,7 @@ export default function AdminChatNotificationManager() {
 
   useEffect(() => {
     // Only connect and listen if the user is an authorized admin/staff
-    if (!isAdmin && !isStaff) return;
+    if (!isAdmin) return;
 
     if (!socket.connected) {
       socket.connect();

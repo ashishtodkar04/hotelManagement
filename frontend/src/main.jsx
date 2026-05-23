@@ -39,7 +39,7 @@ if ('serviceWorker' in navigator) {
       unregistered = true;
     }
     if (unregistered) {
-      console.log('Service Workers unregistered.');
+      // Service workers unregistered
     }
   });
 

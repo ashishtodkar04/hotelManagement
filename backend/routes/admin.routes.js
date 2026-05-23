@@ -281,24 +281,46 @@ router.post('/walk-in', requireStaffOrAdmin, async (req, res) => {
     const conn = await db.getConnection();
     try {
         const { table, guests, cart, staff_name } = req.body;
-        const bookingRef = 'WALK-' + Math.floor(1000 + Math.random() * 9000);
-
-        // Calculate total bill from cart including 10% tax
+        
         const subtotal = (cart || []).reduce((sum, item) => sum + (item.price * item.qty), 0);
-        const tax = subtotal * 0.10;
+        const tax = subtotal * 0.18; // Using 18% GST like everywhere else
         const totalBill = subtotal + tax;
 
         await conn.beginTransaction();
 
-        // Create booking with status 'seated' and payment_verified=0 (awaiting admin verification)
-        const [bRes] = await conn.execute(
-            `INSERT INTO bookings 
-            (booking_ref, user_id, booking_date, time_slot, duration, guests, table_number, status, adv_paid, payment_verified, expected_amount, bill_amount, staff_name) 
-            VALUES (?, 0, CURDATE(), CURTIME(), 2, ?, ?, 'seated', 0, 0, ?, ?, ?)`,
-            [bookingRef, Number(guests) || 2, table, totalBill, totalBill, staff_name || 'ADMIN']
+        // Check if there is an existing ACTIVE booking for this table today
+        const [existing] = await conn.execute(
+            `SELECT id, bill_amount, expected_amount FROM bookings 
+             WHERE table_number = ? AND status IN ('seated', 'confirmed') AND DATE(booking_date) = CURDATE()`,
+            [table]
         );
 
-        const bookingId = bRes.insertId;
+        let bookingId;
+        let bookingRef;
+
+        if (existing.length > 0) {
+            // Append to existing booking
+            bookingId = existing[0].id;
+            bookingRef = `WALK-APPEND-${bookingId}`;
+            
+            await conn.execute(
+                `UPDATE bookings SET bill_amount = bill_amount + ?, expected_amount = expected_amount + ?, status = 'seated' WHERE id = ?`,
+                [totalBill, totalBill, bookingId]
+            );
+        } else {
+            // Create new booking
+            bookingRef = 'WALK-' + Math.floor(1000 + Math.random() * 9000);
+            const [bRes] = await conn.execute(
+                `INSERT INTO bookings 
+                (booking_ref, user_id, booking_date, time_slot, duration, guests, table_number, status, adv_paid, payment_verified, expected_amount, bill_amount, staff_name) 
+                VALUES (?, 0, CURDATE(), CURTIME(), 2, ?, ?, 'seated', 0, 0, ?, ?, ?)`,
+                [bookingRef, Number(guests) || 2, table, totalBill, totalBill, staff_name || 'ADMIN']
+            );
+            bookingId = bRes.insertId;
+
+            // Mark table as occupied
+            await conn.execute('UPDATE restaurant_tables SET status="occupied" WHERE table_name=?', [table]);
+        }
 
         if (cart && cart.length > 0) {
             const orderValues = cart.map(item => [
@@ -308,22 +330,22 @@ router.post('/walk-in', requireStaffOrAdmin, async (req, res) => {
                 "INSERT INTO orders (booking_id, dish_id, quantity, price_at_order, total_price, order_status) VALUES ?",
                 [orderValues]
             );
+
+            const { deductInventoryForOrders } = require('../services/inventoryService');
+            deductInventoryForOrders(cart.map(i => ({ dishId: i.id, quantity: i.qty })));
         }
 
         // 💰 Record as 'pending' for manual admin verification
         await conn.execute(
             `INSERT INTO payments (booking_id, amount, method, status, transaction_id, created_at)
              VALUES (?, ?, 'Hard Cash', 'pending', ?, NOW())`,
-            [bookingId, totalBill, `CASH-${bookingRef}`]
+            [bookingId, totalBill, `CASH-${bookingRef}-${Date.now().toString().slice(-4)}`]
         );
-
-        // Mark table as occupied
-        await conn.execute('UPDATE restaurant_tables SET status="occupied" WHERE table_name=?', [table]);
 
         await conn.commit();
 
         req.io.emit('order_update', { bookingId, status: 'ordered' });
-        res.json({ success: true, bookingId, bookingRef });
+        res.json({ success: true, bookingId, bookingRef, appended: existing.length > 0 });
     } catch (err) {
         await conn.rollback();
         console.error("Walk-in Error:", err);
@@ -352,7 +374,9 @@ router.get('/chef/data', requireStaffOrAdmin, async (req, res) => {
                 d.name AS dish_name,
                 COALESCE(d.type, 'veg') AS dish_type,
                 o.quantity,
-                o.order_status
+                o.order_status,
+                o.prep_start_time,
+                o.prep_end_time
             FROM bookings b
             JOIN orders o ON b.id = o.booking_id
             JOIN dishes d ON o.dish_id = d.id
@@ -387,7 +411,9 @@ router.get('/chef/data', requireStaffOrAdmin, async (req, res) => {
                 name: row.dish_name,
                 quantity: row.quantity,
                 type: row.dish_type,
-                status: row.order_status
+                status: row.order_status,
+                prep_start_time: row.prep_start_time,
+                prep_end_time: row.prep_end_time
             });
         });
 
@@ -403,7 +429,15 @@ router.post('/chef/update-order', requireStaffOrAdmin, async (req, res) => {
         if (!orderId || !status) return res.status(400).json({ success: false, error: 'orderId and status required' });
         const validStatuses = ['ordered', 'preparing', 'ready', 'served'];
         if (!validStatuses.includes(status)) return res.status(400).json({ success: false, error: 'Invalid status' });
-        await db.execute('UPDATE orders SET order_status=? WHERE id=?', [status, orderId]);
+        
+        if (status === 'preparing') {
+            await db.execute('UPDATE orders SET order_status=?, prep_start_time=NOW() WHERE id=?', [status, orderId]);
+        } else if (status === 'ready') {
+            await db.execute('UPDATE orders SET order_status=?, prep_end_time=NOW() WHERE id=?', [status, orderId]);
+        } else {
+            await db.execute('UPDATE orders SET order_status=? WHERE id=?', [status, orderId]);
+        }
+        
         if (req.io) req.io.emit('order_update', { orderId, status });
         res.json({ success: true });
     } catch (err) {
@@ -486,9 +520,40 @@ router.post('/checkout', requireAdmin, async (req, res) => {
         const paperlessDiscount = (userId && userId !== 0)
                                   ? parseFloat((subtotal * 0.001).toFixed(2))
                                   : 0;
+
+        // --- Loyalty & Retention Engine ---
+        let loyaltyDiscount = 0;
+        let loyaltyTier = 'None';
+        if (userId && userId !== 0) {
+            // Get all historical completed bookings for this user
+            const [historyData] = await db.execute(`
+                SELECT CAST(COALESCE(SUM(bill_amount), 0) AS DECIMAL(10,2)) as total_spent
+                FROM booking_history
+                WHERE user_id = ? AND status = 'completed'`,
+                [userId]
+            );
+            const totalSpent = parseFloat(historyData[0]?.total_spent || 0);
+
+            // Tier thresholds (adjust as needed)
+            // Silver: > ₹5000 (2% off)
+            // Gold: > ₹15000 (5% off)
+            // Platinum: > ₹50000 (10% off)
+            if (totalSpent > 50000) {
+                loyaltyDiscount = parseFloat((subtotal * 0.10).toFixed(2));
+                loyaltyTier = 'Platinum (10%)';
+            } else if (totalSpent > 15000) {
+                loyaltyDiscount = parseFloat((subtotal * 0.05).toFixed(2));
+                loyaltyTier = 'Gold (5%)';
+            } else if (totalSpent > 5000) {
+                loyaltyDiscount = parseFloat((subtotal * 0.02).toFixed(2));
+                loyaltyTier = 'Silver (2%)';
+            }
+        }
+        // ----------------------------------
+
         const customDiscount  = parseFloat(Number(discount) || 0);
         const totalPayable    = parseFloat(
-                                  Math.max(0, subtotal + gst - customDiscount - paperlessDiscount).toFixed(2)
+                                  Math.max(0, subtotal + gst - customDiscount - paperlessDiscount - loyaltyDiscount).toFixed(2)
                                 );
         const finalBillDue    = parseFloat(Math.max(0, totalPayable - advPaid).toFixed(2));
 
@@ -499,7 +564,7 @@ router.post('/checkout', requireAdmin, async (req, res) => {
                  final_bill_expected = ?,
                  discount         = ?
              WHERE id = ?`,
-            [totalPayable, finalBillDue, customDiscount, bookingId]
+            [totalPayable, finalBillDue, customDiscount + loyaltyDiscount, bookingId]
         );
 
         res.json({
@@ -508,12 +573,72 @@ router.post('/checkout', requireAdmin, async (req, res) => {
                 subtotal,
                 gst,
                 paperlessDiscount,
+                loyaltyDiscount,
+                loyaltyTier,
                 customDiscount,
                 totalPayable,
                 advPaid,
                 finalBillDue
             },
             finalBill: finalBillDue
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/checkout-preview/:id', requireAdmin, async (req, res) => {
+    try {
+        const bookingId = req.params.id;
+        const [data] = await db.execute(`
+            SELECT b.id, b.adv_paid, b.user_id, CAST(COALESCE(SUM(o.total_price), 0) AS DECIMAL(10,2)) as subtotal
+            FROM bookings b
+            LEFT JOIN orders o ON b.id = o.booking_id
+            WHERE b.id = ?
+            GROUP BY b.id`, [bookingId]
+        );
+
+        if (data.length === 0) return res.status(404).json({ error: 'Booking not found' });
+
+        const subtotal        = parseFloat(data[0].subtotal)          || 0;
+        const advPaid         = parseFloat(data[0].adv_paid)          || 0;
+        const userId          = data[0].user_id;
+        const gst             = parseFloat((subtotal * 0.18).toFixed(2));
+        const paperlessDiscount = (userId && userId !== 0)
+                                  ? parseFloat((subtotal * 0.001).toFixed(2))
+                                  : 0;
+
+        let loyaltyDiscount = 0;
+        let loyaltyTier = 'None';
+        if (userId && userId !== 0) {
+            const [historyData] = await db.execute(`
+                SELECT CAST(COALESCE(SUM(bill_amount), 0) AS DECIMAL(10,2)) as total_spent
+                FROM booking_history
+                WHERE user_id = ? AND status = 'completed'`,
+                [userId]
+            );
+            const totalSpent = parseFloat(historyData[0]?.total_spent || 0);
+
+            if (totalSpent > 50000) {
+                loyaltyDiscount = parseFloat((subtotal * 0.10).toFixed(2));
+                loyaltyTier = 'Platinum (10%)';
+            } else if (totalSpent > 15000) {
+                loyaltyDiscount = parseFloat((subtotal * 0.05).toFixed(2));
+                loyaltyTier = 'Gold (5%)';
+            } else if (totalSpent > 5000) {
+                loyaltyDiscount = parseFloat((subtotal * 0.02).toFixed(2));
+                loyaltyTier = 'Silver (2%)';
+            }
+        }
+
+        res.json({
+            success: true,
+            subtotal,
+            gst,
+            paperlessDiscount,
+            loyaltyDiscount,
+            loyaltyTier,
+            advPaid
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -798,10 +923,24 @@ router.get('/stats', requireAdmin, async (req, res) => {
             WHERE DATE(booking_date) = CURDATE()
         `);
 
+        const [busiestHours] = await db.execute(`
+            SELECT HOUR(time_slot) as hour, COUNT(*) as count 
+            FROM (
+                SELECT time_slot FROM bookings
+                UNION ALL
+                SELECT time_slot FROM booking_history
+            ) all_slots
+            WHERE time_slot IS NOT NULL
+            GROUP BY HOUR(time_slot) 
+            ORDER BY count DESC 
+            LIMIT 5
+        `);
+
         res.json({ 
             success: true, 
             dailyRevenue, 
             popularDishes,
+            busiestHours,
             todayStats: {
                 onlineRevenue: todayRevenue[0].online || 0,
                 cashRevenue: todayRevenue[0].cash || 0,
@@ -1045,6 +1184,43 @@ router.get('/stats/monthly-audit', requireAdmin, async (req, res) => {
 
 
         res.json({ success: true, revenue, costs });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ✅ 12. OUTGOING SMS GATEWAY (For Android App)
+router.get('/outgoing-sms', requireStaffOrAdmin, async (req, res) => {
+    try {
+        const [smsList] = await db.execute('SELECT * FROM outgoing_sms WHERE status = "pending" ORDER BY created_at ASC LIMIT 10');
+        res.json({ success: true, sms: smsList });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+router.post('/outgoing-sms/:id/sent', requireStaffOrAdmin, async (req, res) => {
+    try {
+        await db.execute('UPDATE outgoing_sms SET status = "sent" WHERE id = ?', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+router.post('/send-sms', requireStaffOrAdmin, async (req, res) => {
+    try {
+        const { phone, message } = req.body;
+        if (!phone || !message) return res.status(400).json({ error: 'Phone and message required' });
+        
+        const { queueOutgoingSms } = require('../services/smsGatewayService');
+        const queued = await queueOutgoingSms(phone, message);
+        
+        if (queued) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ success: false, error: 'Failed to queue SMS' });
+        }
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }

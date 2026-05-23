@@ -68,6 +68,7 @@ export default function AdminChat() {
 
     const msgData = {
       userId: adminActiveUserId,
+      userName: activeThread?.userName || adminActiveUserId,
       message: message.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       is_read: 0
@@ -83,7 +84,7 @@ export default function AdminChat() {
     </div>
   );
 
-  if (!isAdmin && !isStaff) return <Navigate to="/admin/login" />;
+  if (!isAdmin) return <Navigate to="/admin/login" />;
 
   const activeThread = adminThreads.find(t => t.userId === adminActiveUserId);
   const filteredThreads = adminThreads.filter(t => 

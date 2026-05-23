@@ -194,7 +194,7 @@ export default function WalkInPOS() {
                     >
                       <option value="">{t('table')}…</option>
                       {tables.map(t_item => (
-                        <option key={t_item.id} value={t_item.table_name} disabled={t_item.status === 'occupied'}>
+                        <option key={t_item.id} value={t_item.table_name}>
                           {t_item.table_name}{t_item.status === 'occupied' ? ` (${t('occupied')})` : ''}
                         </option>
                       ))}
