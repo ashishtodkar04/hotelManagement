@@ -105,17 +105,19 @@ async function processIncomingPayment({ amount, transactionId, source, rawText, 
 async function handleMatch(conn, booking, amount, transactionId, type, io) {
     const isAdvance = type === 'advance';
     const txnId = transactionId || `${isAdvance ? 'SMS' : 'FINAL'}-${Date.now()}`;
+    // Ensure exact decimal precision — no floating-point rounding
+    const exactAmount = parseFloat(Number(amount).toFixed(2));
 
     // Update Booking
     if (isAdvance) {
         await conn.execute(
             `UPDATE bookings SET payment_verified = 1, status = 'confirmed', utr_number = ?, adv_paid = ? WHERE id = ?`,
-            [txnId, amount, booking.id]
+            [txnId, exactAmount, booking.id]
         );
     } else {
-        // Final payment match
-        const newFinalPaid = Number(booking.paid_amount || 0) + Number(amount);
-        const totalPaidOverall = Number(booking.adv_paid || 0) + newFinalPaid;
+        // Final payment match — exact paisa precision
+        const newFinalPaid = parseFloat((Number(booking.paid_amount || 0) + exactAmount).toFixed(2));
+        const totalPaidOverall = parseFloat((Number(booking.adv_paid || 0) + newFinalPaid).toFixed(2));
 
         await conn.execute(
             `UPDATE bookings SET final_payment_verified = 1, status = 'completed', paid_amount = ?, bill_amount = ? WHERE id = ?`,

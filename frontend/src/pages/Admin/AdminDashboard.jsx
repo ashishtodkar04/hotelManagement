@@ -99,6 +99,8 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [checkoutModal, setCheckoutModal] = useState(null);
+  const [checkoutDiscount, setCheckoutDiscount] = useState('');
 
 
   useEffect(() => {
@@ -253,13 +255,37 @@ export default function AdminDashboard() {
     } catch { alert('Identity Verification Error'); }
   };
 
-  const checkout = async (bookingId, discount) => {
+  const openCheckout = (booking) => {
+    setCheckoutDiscount('');
+    setCheckoutModal(booking);
+  };
+
+  const executeCheckout = async () => {
+    if (!checkoutModal) return;
     try {
-      await api.post('/api/admin/checkout', { bookingId, discount });
+      const res = await api.post('/api/admin/checkout', {
+        bookingId: checkoutModal.id,
+        discount: parseFloat(checkoutDiscount) || 0
+      });
+      if (res.data.breakdown) {
+        const bd = res.data.breakdown;
+        alert(`✅ Settlement Authorized\n\nSubtotal: ₹${bd.subtotal.toFixed(2)}\nGST (18%): ₹${bd.gst.toFixed(2)}\nDiscount: -₹${bd.customDiscount.toFixed(2)}\nPaperless Discount: -₹${bd.paperlessDiscount.toFixed(2)}\n─────────────\nTotal: ₹${bd.totalPayable.toFixed(2)}\nAdvance Paid: -₹${bd.advPaid.toFixed(2)}\n─────────────\nFinal Due: ₹${bd.finalBillDue.toFixed(2)}`);
+      }
+      setCheckoutModal(null);
       fetchData(true);
-    } catch (err) { 
+    } catch (err) {
       const msg = err.response?.data?.error || 'Checkout Authorization Failed';
-      alert(msg); 
+      alert(msg);
+    }
+  };
+
+  const payAtCounter = async (bookingId) => {
+    try {
+      await api.post('/api/admin/pay-at-counter', { bookingId });
+      fetchData(true);
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Payment processing failed';
+      alert(msg);
     }
   };
 
@@ -358,7 +384,7 @@ export default function AdminDashboard() {
   const stats = [
     { label: t('today_bookings'), value: bookings.length || 0, color: 'text-blue-500', icon: TrendingUp },
     { label: t('walkins_online'), value: `${statsData.todayStats.walkInCount} / ${statsData.todayStats.onlineBookingCount}`, color: 'text-indigo-500', icon: Activity },
-    { label: t('total_revenue'), value: `₹${(Number(statsData.todayStats.onlineRevenue) + Number(statsData.todayStats.cashRevenue)).toFixed(0)}`, color: 'text-emerald-500', icon: LayoutDashboard },
+    { label: t('total_revenue'), value: `₹${(Number(statsData.todayStats.onlineRevenue) + Number(statsData.todayStats.cashRevenue)).toFixed(2)}`, color: 'text-emerald-500', icon: LayoutDashboard },
     { label: t('monitor_sync'), value: monitorStatus.active ? t('active') : t('offline'), color: monitorStatus.active ? 'text-emerald-500' : 'text-rose-500', icon: RefreshCw }
   ];
 
@@ -855,8 +881,8 @@ export default function AdminDashboard() {
                                <div className="h-full bg-blue-600" style={{ width: `${(a.online_revenue / a.revenue) * 100}%` }} title="Online Share" />
                             </div>
                             <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
-                               <span>Walk-in: ₹{a.walkin_revenue.toFixed(0)}</span>
-                               <span>Online: ₹{a.online_revenue.toFixed(0)}</span>
+                               <span>Walk-in: ₹{a.walkin_revenue.toFixed(2)}</span>
+                               <span>Online: ₹{a.online_revenue.toFixed(2)}</span>
                             </div>
                          </div>
                       </td>
@@ -872,10 +898,10 @@ export default function AdminDashboard() {
                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(a.utility_cost / a.cost) * 100}%` }} title="Utility" />
                             </div>
                             <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-400">
-                               <span>GRC: ₹{a.grocery_cost.toFixed(0)}</span>
-                               <span>CMD: ₹{a.commodity_cost.toFixed(0)}</span>
-                               <span>UTL: ₹{a.utility_cost.toFixed(0)}</span>
-                               <span>STF: ₹{a.staff_cost.toFixed(0)}</span>
+                               <span>GRC: ₹{a.grocery_cost.toFixed(2)}</span>
+                               <span>CMD: ₹{a.commodity_cost.toFixed(2)}</span>
+                               <span>UTL: ₹{a.utility_cost.toFixed(2)}</span>
+                               <span>STF: ₹{a.staff_cost.toFixed(2)}</span>
                             </div>
 
                          </div>
@@ -1021,11 +1047,11 @@ export default function AdminDashboard() {
                         <div className="space-y-1">
                           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
                             <span>Subtotal:</span>
-                            <span>₹{Number(b.subtotal).toFixed(0)}</span>
+                            <span>₹{Number(b.subtotal).toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-blue-600 pt-2">
                             <span>{t('bill_amount')}:</span>
-                            <span>₹{billAmount.toFixed(0)}</span>
+                            <span>₹{billAmount.toFixed(2)}</span>
                           </div>
                         </div>
                       </td>
@@ -1033,7 +1059,7 @@ export default function AdminDashboard() {
                       <td className="px-12 py-12">
                         <div className="space-y-2">
                            <div className={`text-4xl font-black font-serif tracking-tighter ${remainingDue > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                             ₹{remainingDue.toFixed(0)}
+                             ₹{remainingDue.toFixed(2)}
                            </div>
                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">DUE AMOUNT</div>
                         </div>
@@ -1053,7 +1079,10 @@ export default function AdminDashboard() {
                             </select>
                             
                             {b.booking_status === 'seated' && (
-                               <button onClick={() => checkout(b.id, 0)} className="btn-primary py-3 px-6 text-[9px]">AUTHORIZE SETTLEMENT</button>
+                               <button onClick={() => openCheckout(b)} className="btn-primary py-3 px-6 text-[9px]">AUTHORIZE SETTLEMENT</button>
+                            )}
+                            {b.booking_status === 'awaiting_final_payment' && (
+                               <button onClick={() => payAtCounter(b.id)} className="bg-emerald-600 text-white font-black py-3 px-6 rounded-xl text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg">PAY AT COUNTER</button>
                             )}
                         </div>
                       </td>
@@ -1080,7 +1109,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="text-right">
                        <p className={`text-2xl font-black font-serif tracking-tighter ${remainingDue > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                         ₹{remainingDue.toFixed(0)}
+                         ₹{remainingDue.toFixed(2)}
                        </p>
                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">DUE</p>
                     </div>
@@ -1098,7 +1127,10 @@ export default function AdminDashboard() {
                       <option value="completed">{t('completed')}</option>
                     </select>
                     {b.booking_status === 'seated' && (
-                       <button onClick={() => checkout(b.id, 0)} className="btn-primary py-3 px-4 text-[8px]">SETTLE</button>
+                       <button onClick={() => openCheckout(b)} className="btn-primary py-3 px-4 text-[8px]">SETTLE</button>
+                    )}
+                    {b.booking_status === 'awaiting_final_payment' && (
+                       <button onClick={() => payAtCounter(b.id)} className="bg-emerald-600 text-white font-black py-3 px-4 rounded-xl text-[8px] uppercase tracking-widest">PAY</button>
                     )}
                   </div>
                 </div>
@@ -1172,6 +1204,82 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+        {/* Checkout Settlement Modal */}
+        {checkoutModal && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
+            <div className="glass w-full max-w-lg p-10 relative overflow-hidden border border-blue-600/10 shadow-2xl rounded-[2rem]">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                <CreditCard size={120} className="text-blue-600" />
+              </div>
+              <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] mb-2">Settlement Authorization</h3>
+              <p className="text-2xl font-black text-[var(--theme-text)] tracking-tight mb-1 font-serif italic">{checkoutModal.user_name}</p>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-8">Table {checkoutModal.table_number} · {checkoutModal.guests} Guests · Ref: {checkoutModal.booking_ref}</p>
+
+              <div className="space-y-4 mb-8 bg-[var(--theme-accent)] p-6 rounded-2xl border border-[var(--theme-border)]">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400 font-bold">Food Subtotal</span>
+                  <span className="font-black text-[var(--theme-text)]">₹{Number(checkoutModal.subtotal || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400 font-bold">GST (18%)</span>
+                  <span className="font-black text-[var(--theme-text)]">₹{(Number(checkoutModal.subtotal || 0) * 0.18).toFixed(2)}</span>
+                </div>
+                {parseFloat(checkoutDiscount) > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-500">
+                    <span className="font-bold">Discount</span>
+                    <span className="font-black">-₹{parseFloat(checkoutDiscount).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="border-t border-[var(--theme-border)] pt-4 flex justify-between text-lg">
+                  <span className="font-black text-[var(--theme-text)]">Estimated Total</span>
+                  <span className="font-black text-blue-600">
+                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0)).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span className="font-bold">Advance Paid</span>
+                  <span className="font-black">-₹{Number(checkoutModal.adv_paid || 0).toFixed(2)}</span>
+                </div>
+                <div className="border-t border-[var(--theme-border)] pt-3 flex justify-between text-xl">
+                  <span className="font-black text-[var(--theme-text)]">Final Due</span>
+                  <span className={`font-black font-serif tracking-tighter ${
+                    Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - Number(checkoutModal.adv_paid || 0)) > 0 ? 'text-rose-500' : 'text-emerald-500'
+                  }`}>
+                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - Number(checkoutModal.adv_paid || 0)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-3">Apply Discount (₹)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={checkoutDiscount}
+                  onChange={(e) => setCheckoutDiscount(e.target.value)}
+                  className="w-full bg-[var(--theme-input)] border border-[var(--theme-border)] text-[var(--theme-text)] px-6 py-4 rounded-2xl text-lg font-black focus:outline-none focus:border-blue-600 transition-colors"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setCheckoutModal(null)}
+                  className="flex-1 btn-secondary py-4 rounded-xl text-[10px] font-black tracking-widest uppercase"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeCheckout}
+                  className="flex-1 btn-primary py-4 rounded-xl text-[10px] font-black tracking-widest uppercase shadow-2xl shadow-blue-600/20"
+                >
+                  Authorize Settlement
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {confirmAction && (
           <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
             <div className="glass w-full max-w-md p-8 relative overflow-hidden border border-rose-500/10 shadow-2xl rounded-[2rem] text-center">

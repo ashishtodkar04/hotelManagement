@@ -343,13 +343,23 @@ router.get('/chef/data', requireStaffOrAdmin, async (req, res) => {
     try {
         const [orders] = await db.execute(`
             SELECT
-                b.id AS booking_id, b.table_number, b.time_slot,
-                o.id AS order_id, d.name AS dish_name, o.quantity, o.order_status
+                b.id AS booking_id,
+                b.table_number,
+                b.time_slot,
+                b.status AS booking_status,
+                COALESCE(u.name, b.staff_name, 'Walk-in Guest') AS user_name,
+                o.id AS order_id,
+                d.name AS dish_name,
+                COALESCE(d.type, 'veg') AS dish_type,
+                o.quantity,
+                o.order_status
             FROM bookings b
             JOIN orders o ON b.id = o.booking_id
             JOIN dishes d ON o.dish_id = d.id
+            LEFT JOIN users u ON b.user_id = u.id
             WHERE DATE(b.booking_date) = CURDATE()
-              AND o.order_status IN ('ordered', 'preparing')
+              AND b.status IN ('confirmed', 'seated', 'awaiting_final_payment')
+              AND o.order_status IN ('ordered', 'preparing', 'ready')
             ORDER BY b.time_slot ASC, o.id ASC
         `);
 
@@ -358,11 +368,26 @@ router.get('/chef/data', requireStaffOrAdmin, async (req, res) => {
         orders.forEach(row => {
             if (!kitchenTickets[row.booking_id]) {
                 kitchenTickets[row.booking_id] = {
-                    booking_id: row.booking_id, table: row.table_number, time: row.time_slot, items: []
+                    id: row.booking_id,
+                    booking_id: row.booking_id,
+                    table_number: row.table_number,
+                    time_slot: row.time_slot,
+                    user_name: row.user_name,
+                    status: row.order_status,
+                    items: []
                 };
             }
-            kitchenTickets[row.booking_id].items.push({
-                order_id: row.order_id, dish_name: row.dish_name, qty: row.quantity, status: row.order_status
+            // Update overall ticket status: if any item is 'ordered', ticket is 'pending'
+            const ticket = kitchenTickets[row.booking_id];
+            if (row.order_status === 'ordered') ticket.status = 'pending';
+            else if (row.order_status === 'preparing' && ticket.status !== 'pending') ticket.status = 'preparing';
+
+            ticket.items.push({
+                order_id: row.order_id,
+                name: row.dish_name,
+                quantity: row.quantity,
+                type: row.dish_type,
+                status: row.order_status
             });
         });
 
@@ -375,7 +400,11 @@ router.get('/chef/data', requireStaffOrAdmin, async (req, res) => {
 router.post('/chef/update-order', requireStaffOrAdmin, async (req, res) => {
     try {
         const { orderId, status } = req.body;
+        if (!orderId || !status) return res.status(400).json({ success: false, error: 'orderId and status required' });
+        const validStatuses = ['ordered', 'preparing', 'ready', 'served'];
+        if (!validStatuses.includes(status)) return res.status(400).json({ success: false, error: 'Invalid status' });
         await db.execute('UPDATE orders SET order_status=? WHERE id=?', [status, orderId]);
+        if (req.io) req.io.emit('order_update', { orderId, status });
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -408,16 +437,16 @@ router.post('/update-status', requireAdmin, validate(schemas.updateBookingStatus
                 [bookingId]
             );
 
-            const subtotal = Number(data[0].subtotal);
-            const specialDiscount = Number(data[0].special_discount);
-            const advPaid = Number(data[0].adv_paid);
+            const subtotal = parseFloat(Number(data[0].subtotal).toFixed(2));
+            const specialDiscount = parseFloat(Number(data[0].special_discount).toFixed(2));
+            const advPaid = parseFloat(Number(data[0].adv_paid).toFixed(2));
             
-            // Tax: 10%, Paperless: 0.1% for registered users
-            const tax = subtotal * 0.10;
-            const paperlessDiscount = (userId && userId !== 0) ? (subtotal * 0.001) : 0;
-            const finalPaidPart = Number(check[0].paid_amount || 0);
-            const totalPaidOverall = advPaid + finalPaidPart;
-            const totalToPay = Math.max(0, (subtotal + tax) - specialDiscount - paperlessDiscount);
+            // Tax: 18% GST, Paperless: 0.1% for registered users
+            const tax = parseFloat((subtotal * 0.18).toFixed(2));
+            const paperlessDiscount = (userId && userId !== 0) ? parseFloat((subtotal * 0.001).toFixed(2)) : 0;
+            const finalPaidPart = parseFloat(Number(check[0].paid_amount || 0).toFixed(2));
+            const totalPaidOverall = parseFloat((advPaid + finalPaidPart).toFixed(2));
+            const totalToPay = parseFloat(Math.max(0, (subtotal + tax) - specialDiscount - paperlessDiscount).toFixed(2));
 
             if (totalPaidOverall < (totalToPay - 1)) { 
                 return res.status(400).json({ error: `Cannot mark completed. Total paid (₹${totalPaidOverall.toFixed(2)}) is less than total due (₹${totalToPay.toFixed(2)}).` });
@@ -441,32 +470,51 @@ router.post('/checkout', requireAdmin, async (req, res) => {
     const { bookingId, discount } = req.body;
     try {
         const [data] = await db.execute(`
-            SELECT b.id, b.adv_paid, b.user_id, COALESCE(SUM(o.total_price), 0) as subtotal
+            SELECT b.id, b.adv_paid, b.user_id, CAST(COALESCE(SUM(o.total_price), 0) AS DECIMAL(10,2)) as subtotal
             FROM bookings b
             LEFT JOIN orders o ON b.id = o.booking_id
             WHERE b.id = ?
             GROUP BY b.id`, [bookingId]
         );
 
-        if (data.length === 0) return res.status(404).json({ error: "Booking not found" });
+        if (data.length === 0) return res.status(404).json({ error: 'Booking not found' });
 
-        const subtotal = Number(data[0].subtotal);
-        const advPaid = Number(data[0].adv_paid);
-        const userId = data[0].user_id;
-        const tax = subtotal * 0.10;
-        const paperlessDiscount = (userId && userId !== 0) ? (subtotal * 0.001) : 0;
-        const customDiscount = Number(discount) || 0;
-
-        const totalPayable = Math.max(0, (subtotal + tax) - customDiscount - paperlessDiscount);
-        const finalBillDue = Math.max(0, totalPayable - advPaid);
-
+        const subtotal        = parseFloat(data[0].subtotal)          || 0;
+        const advPaid         = parseFloat(data[0].adv_paid)          || 0;
+        const userId          = data[0].user_id;
+        const gst             = parseFloat((subtotal * 0.18).toFixed(2));
+        const paperlessDiscount = (userId && userId !== 0)
+                                  ? parseFloat((subtotal * 0.001).toFixed(2))
+                                  : 0;
+        const customDiscount  = parseFloat(Number(discount) || 0);
+        const totalPayable    = parseFloat(
+                                  Math.max(0, subtotal + gst - customDiscount - paperlessDiscount).toFixed(2)
+                                );
+        const finalBillDue    = parseFloat(Math.max(0, totalPayable - advPaid).toFixed(2));
 
         await db.execute(
-            'UPDATE bookings SET status = "awaiting_final_payment", bill_amount = ?, final_bill_expected = ?, discount = ? WHERE id = ?',
+            `UPDATE bookings
+             SET status = 'awaiting_final_payment',
+                 bill_amount      = ?,
+                 final_bill_expected = ?,
+                 discount         = ?
+             WHERE id = ?`,
             [totalPayable, finalBillDue, customDiscount, bookingId]
         );
 
-        res.json({ success: true, finalBill: finalBillDue });
+        res.json({
+            success: true,
+            breakdown: {
+                subtotal,
+                gst,
+                paperlessDiscount,
+                customDiscount,
+                totalPayable,
+                advPaid,
+                finalBillDue
+            },
+            finalBill: finalBillDue
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -497,10 +545,10 @@ router.post('/pay-at-counter', requireAdmin, async (req, res) => {
             WHERE b.id = ?`, [bookingId]);
         
         const b = billing[0];
-        const subtotal = Number(b.subtotal);
-        const tax = subtotal * 0.10;
-        const paperlessDiscount = (b.user_id && b.user_id !== 0) ? (subtotal * 0.001) : 0;
-        const totalToPay = Math.max(0, (subtotal + tax) - Number(b.discount) - paperlessDiscount);
+        const subtotal = parseFloat(Number(b.subtotal).toFixed(2));
+        const tax = parseFloat((subtotal * 0.18).toFixed(2));
+        const paperlessDiscount = (b.user_id && b.user_id !== 0) ? parseFloat((subtotal * 0.001).toFixed(2)) : 0;
+        const totalToPay = parseFloat(Math.max(0, (subtotal + tax) - Number(b.discount) - paperlessDiscount).toFixed(2));
         
         // When paying at counter, the remaining balance is paid as cash
         const remainingBalance = Math.max(0, totalToPay - Number(b.adv_paid));
@@ -649,7 +697,7 @@ router.get('/history', requireAdmin, async (req, res) => {
 router.get('/stats', requireAdmin, async (req, res) => {
     try {
         const [dailyRevenue] = await db.execute(`
-            SELECT booking_date, SUM(bill_amount) as revenue 
+            SELECT booking_date, CAST(SUM(bill_amount) AS DECIMAL(10,2)) as revenue 
             FROM (
                 SELECT booking_date, bill_amount, status FROM bookings
                 UNION ALL
@@ -900,11 +948,15 @@ router.get('/stats/monthly-audit', requireAdmin, async (req, res) => {
         const [revenue] = await db.execute(`
             SELECT 
                 DATE_FORMAT(booking_date, '%Y-%m') as month,
-                SUM(bill_amount) as total_revenue,
-                SUM(CASE WHEN user_id = 0 OR user_id IS NULL THEN bill_amount ELSE 0 END) as walkin_revenue,
-                SUM(CASE WHEN user_id > 0 THEN bill_amount ELSE 0 END) as online_revenue,
+                CAST(SUM(bill_amount) AS DECIMAL(10,2)) as total_revenue,
+                CAST(SUM(CASE WHEN user_id = 0 OR user_id IS NULL THEN bill_amount ELSE 0 END) AS DECIMAL(10,2)) as walkin_revenue,
+                CAST(SUM(CASE WHEN user_id > 0 THEN bill_amount ELSE 0 END) AS DECIMAL(10,2)) as online_revenue,
                 COUNT(*) as total_bookings
-            FROM bookings
+            FROM (
+                SELECT booking_date, bill_amount, user_id, status FROM bookings
+                UNION ALL
+                SELECT booking_date, bill_amount, user_id, status FROM booking_history
+            ) all_bookings
             WHERE status = 'completed'
             GROUP BY month
             ORDER BY month ASC
