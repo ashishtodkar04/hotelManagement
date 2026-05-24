@@ -370,6 +370,7 @@ async function initializeDayChangeAutomation() {
         // Move completed/cancelled to history before deleting (simulating the trigger)
         try {
             await db.query("INSERT IGNORE INTO booking_history (id, user_id, booking_ref, booking_date, time_slot, duration, guests, table_number, status, adv_paid, payment_verified, final_payment_verified, expected_amount, bill_amount, final_bill_expected, paid_amount, discount, utr_number, payment_method, staff_name, created_at) SELECT id, user_id, booking_ref, booking_date, time_slot, duration, guests, table_number, status, adv_paid, payment_verified, final_payment_verified, expected_amount, bill_amount, final_bill_expected, paid_amount, discount, utr_number, payment_method, staff_name, created_at FROM bookings WHERE status IN ('completed', 'cancelled') AND booking_date < CURDATE()");
+            await db.query("DELETE FROM orders WHERE booking_id IN (SELECT id FROM bookings WHERE status IN ('completed', 'cancelled') AND booking_date < CURDATE())");
             const [delRes] = await db.query("DELETE FROM bookings WHERE status IN ('completed', 'cancelled') AND booking_date < CURDATE()");
             console.log('🧹 Initial day-change clean completed.', delRes?.affectedRows || '');
         } catch(e) {
@@ -384,6 +385,7 @@ async function initializeDayChangeAutomation() {
                 console.log(`🌅 Day change detected! Running queries to archive completed/cancelled bookings...`);
                 try {
                     await db.query("INSERT IGNORE INTO booking_history (id, user_id, booking_ref, booking_date, time_slot, duration, guests, table_number, status, adv_paid, payment_verified, final_payment_verified, expected_amount, bill_amount, final_bill_expected, paid_amount, discount, utr_number, payment_method, staff_name, created_at) SELECT id, user_id, booking_ref, booking_date, time_slot, duration, guests, table_number, status, adv_paid, payment_verified, final_payment_verified, expected_amount, bill_amount, final_bill_expected, paid_amount, discount, utr_number, payment_method, staff_name, created_at FROM bookings WHERE status IN ('completed', 'cancelled') AND booking_date < CURDATE()");
+                    await db.query("DELETE FROM orders WHERE booking_id IN (SELECT id FROM bookings WHERE status IN ('completed', 'cancelled') AND booking_date < CURDATE())");
                     await db.query("DELETE FROM bookings WHERE status IN ('completed', 'cancelled') AND booking_date < CURDATE()");
                     console.log('✅ Day-change auto-clean completed successfully.');
                     lastCheckedDate = currentDate;
