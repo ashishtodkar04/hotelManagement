@@ -493,12 +493,44 @@ router.post('/update-status', requireAdmin, validate(schemas.updateBookingStatus
             const specialDiscount = parseFloat(Number(data[0].special_discount).toFixed(2));
             const advPaid = parseFloat(Number(data[0].adv_paid).toFixed(2));
             
+            // Calculate loyalty discount dynamically
+            let loyaltyDiscount = 0;
+            if (userId && userId !== 0) {
+                const [countRes] = await conn.execute(`
+                    SELECT (
+                        SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'completed'
+                    ) + (
+                        SELECT COUNT(*) FROM booking_history WHERE user_id = ? AND status = 'completed'
+                    ) AS completed_count
+                `, [userId, userId]);
+                const completedCount = countRes[0]?.completed_count || 0;
+
+                const [historyData] = await conn.execute(`
+                    SELECT CAST(COALESCE(SUM(bill_amount), 0) AS DECIMAL(10,2)) as total_spent
+                    FROM booking_history
+                    WHERE user_id = ? AND status = 'completed'`,
+                    [userId]
+                );
+                const totalSpent = parseFloat(historyData[0]?.total_spent || 0);
+
+                let spentPercent = 0;
+                if (totalSpent > 50000) spentPercent = 0.10;
+                else if (totalSpent > 15000) spentPercent = 0.05;
+                else if (totalSpent > 5000) spentPercent = 0.02;
+
+                let countPercent = completedCount > 10 ? 0.05 : 0.00;
+                let maxPercent = Math.max(spentPercent, countPercent);
+                loyaltyDiscount = parseFloat((subtotal * maxPercent).toFixed(2));
+            }
+
+            const finalDiscount = Math.max(specialDiscount, loyaltyDiscount);
+
             // Tax: 18% GST, Paperless: 0.1% for registered users
             const tax = parseFloat((subtotal * 0.18).toFixed(2));
             const paperlessDiscount = (userId && userId !== 0) ? parseFloat((subtotal * 0.001).toFixed(2)) : 0;
             const finalPaidPart = parseFloat(Number(check[0].paid_amount || 0).toFixed(2));
             const totalPaidOverall = parseFloat((advPaid + finalPaidPart).toFixed(2));
-            const totalToPay = parseFloat(Math.max(0, (subtotal + tax) - specialDiscount - paperlessDiscount).toFixed(2));
+            const totalToPay = parseFloat(Math.max(0, (subtotal + tax) - finalDiscount - paperlessDiscount).toFixed(2));
 
             if (totalPaidOverall < (totalToPay - 1)) { 
                 await conn.rollback();
@@ -506,8 +538,8 @@ router.post('/update-status', requireAdmin, validate(schemas.updateBookingStatus
             }
 
             await conn.execute(
-                'UPDATE bookings SET status = ?, bill_amount = ?, final_payment_verified = 1 WHERE id = ?',
-                [status, totalToPay, bookingId]
+                'UPDATE bookings SET status = ?, bill_amount = ?, discount = ?, final_payment_verified = 1 WHERE id = ?',
+                [status, totalToPay, finalDiscount, bookingId]
             );
         } else {
             // If it is being cancelled, fetch previous status to check if we need to refund stock
@@ -591,8 +623,23 @@ router.post('/checkout', requireAdmin, async (req, res) => {
         // --- Loyalty & Retention Engine ---
         let loyaltyDiscount = 0;
         let loyaltyTier = 'None';
+        let loyaltyBadge = false;
         if (userId && userId !== 0) {
-            // Get all historical completed bookings for this user
+            // Get completed bookings count from both active and historical tables
+            const [countRes] = await db.execute(`
+                SELECT (
+                    SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'completed'
+                ) + (
+                    SELECT COUNT(*) FROM booking_history WHERE user_id = ? AND status = 'completed'
+                ) AS completed_count
+            `, [userId, userId]);
+            
+            const completedCount = countRes[0]?.completed_count || 0;
+            if (completedCount > 10) {
+                loyaltyBadge = true;
+            }
+
+            // Get all historical completed bookings spent for this user
             const [historyData] = await db.execute(`
                 SELECT CAST(COALESCE(SUM(bill_amount), 0) AS DECIMAL(10,2)) as total_spent
                 FROM booking_history
@@ -605,16 +652,30 @@ router.post('/checkout', requireAdmin, async (req, res) => {
             // Silver: > ₹5000 (2% off)
             // Gold: > ₹15000 (5% off)
             // Platinum: > ₹50000 (10% off)
+            let spentPercent = 0;
             if (totalSpent > 50000) {
-                loyaltyDiscount = parseFloat((subtotal * 0.10).toFixed(2));
-                loyaltyTier = 'Platinum (10%)';
+                spentPercent = 0.10;
             } else if (totalSpent > 15000) {
-                loyaltyDiscount = parseFloat((subtotal * 0.05).toFixed(2));
-                loyaltyTier = 'Gold (5%)';
+                spentPercent = 0.05;
             } else if (totalSpent > 5000) {
-                loyaltyDiscount = parseFloat((subtotal * 0.02).toFixed(2));
+                spentPercent = 0.02;
+            }
+
+            // Count-based loyalty: > 10 completed bookings gives automatic 5% off
+            let countPercent = completedCount > 10 ? 0.05 : 0.00;
+
+            // Choose the max percentage
+            let maxPercent = Math.max(spentPercent, countPercent);
+
+            if (maxPercent === 0.10) {
+                loyaltyTier = 'Platinum (10%)';
+            } else if (maxPercent === 0.05) {
+                loyaltyTier = completedCount > 10 ? 'Loyalty Tier (5%)' : 'Gold (5%)';
+            } else if (maxPercent === 0.02) {
                 loyaltyTier = 'Silver (2%)';
             }
+
+            loyaltyDiscount = parseFloat((subtotal * maxPercent).toFixed(2));
         }
         // ----------------------------------
 
@@ -642,6 +703,7 @@ router.post('/checkout', requireAdmin, async (req, res) => {
                 paperlessDiscount,
                 loyaltyDiscount,
                 loyaltyTier,
+                loyaltyBadge,
                 customDiscount,
                 totalPayable,
                 advPaid,
@@ -677,7 +739,21 @@ router.get('/checkout-preview/:id', requireAdmin, async (req, res) => {
 
         let loyaltyDiscount = 0;
         let loyaltyTier = 'None';
+        let loyaltyBadge = false;
         if (userId && userId !== 0) {
+            const [countRes] = await db.execute(`
+                SELECT (
+                    SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'completed'
+                ) + (
+                    SELECT COUNT(*) FROM booking_history WHERE user_id = ? AND status = 'completed'
+                ) AS completed_count
+            `, [userId, userId]);
+            
+            const completedCount = countRes[0]?.completed_count || 0;
+            if (completedCount > 10) {
+                loyaltyBadge = true;
+            }
+
             const [historyData] = await db.execute(`
                 SELECT CAST(COALESCE(SUM(bill_amount), 0) AS DECIMAL(10,2)) as total_spent
                 FROM booking_history
@@ -686,16 +762,27 @@ router.get('/checkout-preview/:id', requireAdmin, async (req, res) => {
             );
             const totalSpent = parseFloat(historyData[0]?.total_spent || 0);
 
+            let spentPercent = 0;
             if (totalSpent > 50000) {
-                loyaltyDiscount = parseFloat((subtotal * 0.10).toFixed(2));
-                loyaltyTier = 'Platinum (10%)';
+                spentPercent = 0.10;
             } else if (totalSpent > 15000) {
-                loyaltyDiscount = parseFloat((subtotal * 0.05).toFixed(2));
-                loyaltyTier = 'Gold (5%)';
+                spentPercent = 0.05;
             } else if (totalSpent > 5000) {
-                loyaltyDiscount = parseFloat((subtotal * 0.02).toFixed(2));
+                spentPercent = 0.02;
+            }
+
+            let countPercent = completedCount > 10 ? 0.05 : 0.00;
+            let maxPercent = Math.max(spentPercent, countPercent);
+
+            if (maxPercent === 0.10) {
+                loyaltyTier = 'Platinum (10%)';
+            } else if (maxPercent === 0.05) {
+                loyaltyTier = completedCount > 10 ? 'Loyalty Tier (5%)' : 'Gold (5%)';
+            } else if (maxPercent === 0.02) {
                 loyaltyTier = 'Silver (2%)';
             }
+
+            loyaltyDiscount = parseFloat((subtotal * maxPercent).toFixed(2));
         }
 
         res.json({
@@ -705,6 +792,7 @@ router.get('/checkout-preview/:id', requireAdmin, async (req, res) => {
             paperlessDiscount,
             loyaltyDiscount,
             loyaltyTier,
+            loyaltyBadge,
             advPaid
         });
     } catch (err) {
@@ -738,16 +826,49 @@ router.post('/pay-at-counter', requireAdmin, async (req, res) => {
         
         const b = billing[0];
         const subtotal = parseFloat(Number(b.subtotal).toFixed(2));
+        const userId = b.user_id;
+
+        // Calculate loyalty discount dynamically
+        let loyaltyDiscount = 0;
+        if (userId && userId !== 0) {
+            const [countRes] = await db.execute(`
+                SELECT (
+                    SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'completed'
+                ) + (
+                    SELECT COUNT(*) FROM booking_history WHERE user_id = ? AND status = 'completed'
+                ) AS completed_count
+            `, [userId, userId]);
+            const completedCount = countRes[0]?.completed_count || 0;
+
+            const [historyData] = await db.execute(`
+                SELECT CAST(COALESCE(SUM(bill_amount), 0) AS DECIMAL(10,2)) as total_spent
+                FROM booking_history
+                WHERE user_id = ? AND status = 'completed'`,
+                [userId]
+            );
+            const totalSpent = parseFloat(historyData[0]?.total_spent || 0);
+
+            let spentPercent = 0;
+            if (totalSpent > 50000) spentPercent = 0.10;
+            else if (totalSpent > 15000) spentPercent = 0.05;
+            else if (totalSpent > 5000) spentPercent = 0.02;
+
+            let countPercent = completedCount > 10 ? 0.05 : 0.00;
+            let maxPercent = Math.max(spentPercent, countPercent);
+            loyaltyDiscount = parseFloat((subtotal * maxPercent).toFixed(2));
+        }
+
+        const specialDiscount = Math.max(parseFloat(b.discount || 0), loyaltyDiscount);
         const tax = parseFloat((subtotal * 0.18).toFixed(2));
-        const paperlessDiscount = (b.user_id && b.user_id !== 0) ? parseFloat((subtotal * 0.001).toFixed(2)) : 0;
-        const totalToPay = parseFloat(Math.max(0, (subtotal + tax) - Number(b.discount) - paperlessDiscount).toFixed(2));
+        const paperlessDiscount = (userId && userId !== 0) ? parseFloat((subtotal * 0.001).toFixed(2)) : 0;
+        const totalToPay = parseFloat(Math.max(0, (subtotal + tax) - specialDiscount - paperlessDiscount).toFixed(2));
         
         // When paying at counter, the remaining balance is paid as cash
         const remainingBalance = Math.max(0, totalToPay - Number(b.adv_paid));
 
         await db.execute(
-            'UPDATE bookings SET status = "completed", final_payment_verified = 1, paid_amount = ?, bill_amount = ? WHERE id = ?',
-            [remainingBalance, totalToPay, bookingId]
+            'UPDATE bookings SET status = "completed", final_payment_verified = 1, paid_amount = ?, bill_amount = ?, discount = ? WHERE id = ?',
+            [remainingBalance, totalToPay, specialDiscount, bookingId]
         );
 
         // ✅ Free the table

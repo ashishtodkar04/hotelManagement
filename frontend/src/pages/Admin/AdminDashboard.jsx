@@ -1399,10 +1399,16 @@ export default function AdminDashboard() {
                     <span className="font-black">-₹{parseFloat(checkoutDiscount).toFixed(2)}</span>
                   </div>
                 )}
+                {Number(checkoutModal.paperlessDiscount || 0) > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-500">
+                    <span className="font-bold">Paperless Discount</span>
+                    <span className="font-black">-₹{Number(checkoutModal.paperlessDiscount).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="border-t border-[var(--theme-border)] pt-4 flex justify-between text-lg">
                   <span className="font-black text-[var(--theme-text)]">Estimated Total</span>
                   <span className="font-black text-blue-600">
-                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - (Number(checkoutModal.loyaltyDiscount) || 0)).toFixed(2)}
+                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - (Number(checkoutModal.loyaltyDiscount) || 0) - (Number(checkoutModal.paperlessDiscount) || 0)).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs text-slate-400">
@@ -1412,9 +1418,9 @@ export default function AdminDashboard() {
                 <div className="border-t border-[var(--theme-border)] pt-3 flex justify-between text-xl">
                   <span className="font-black text-[var(--theme-text)]">Final Due</span>
                   <span className={`font-black font-serif tracking-tighter ${
-                    Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - (Number(checkoutModal.loyaltyDiscount) || 0) - Number(checkoutModal.adv_paid || 0)) > 0 ? 'text-rose-500' : 'text-emerald-500'
+                    Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - (Number(checkoutModal.loyaltyDiscount) || 0) - (Number(checkoutModal.paperlessDiscount) || 0) - Number(checkoutModal.adv_paid || 0)) > 0 ? 'text-rose-500' : 'text-emerald-500'
                   }`}>
-                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - (Number(checkoutModal.loyaltyDiscount) || 0) - Number(checkoutModal.adv_paid || 0)).toFixed(2)}
+                    ₹{Math.max(0, (Number(checkoutModal.subtotal || 0) * 1.18) - (parseFloat(checkoutDiscount) || 0) - (Number(checkoutModal.loyaltyDiscount) || 0) - (Number(checkoutModal.paperlessDiscount) || 0) - Number(checkoutModal.adv_paid || 0)).toFixed(2)}
                   </span>
                 </div>
               </div>

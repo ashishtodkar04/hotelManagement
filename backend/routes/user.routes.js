@@ -543,22 +543,38 @@ router.get('/dashboard', async (req, res) => {
 
         const userId = req.session.user.id;
 
+        // Calculate loyalty badge status
+        let loyaltyBadge = false;
+        if (userId && userId !== 0) {
+            const [countRes] = await db.execute(`
+                SELECT (
+                    SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'completed'
+                ) + (
+                    SELECT COUNT(*) FROM booking_history WHERE user_id = ? AND status = 'completed'
+                ) AS completed_count
+            `, [userId, userId]);
+            const completedCount = countRes[0]?.completed_count || 0;
+            if (completedCount > 10) {
+                loyaltyBadge = true;
+            }
+        }
+
         // ✅ Fetch bookings with full financial breakdown
         const [bookings] = await db.execute(
             `SELECT
                 b.*,
                 COALESCE(orders.subtotal, 0) AS subtotal,
-                (COALESCE(orders.subtotal, 0) * 0.10) AS tax,
+                (COALESCE(orders.subtotal, 0) * 0.18) AS tax,
                 IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0) AS paperless_discount,
                 (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.10) 
+                    + (COALESCE(orders.subtotal, 0) * 0.18) 
                     - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
                     - COALESCE(b.discount, 0)
                 ) AS bill_amount,
                 GREATEST(0, (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.10) 
+                    + (COALESCE(orders.subtotal, 0) * 0.18) 
                     - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
                     - COALESCE(b.discount, 0) 
                     - COALESCE(b.adv_paid, 0)
@@ -593,7 +609,7 @@ router.get('/dashboard', async (req, res) => {
             ordersByBooking[o.booking_id].push(o);
         });
 
-        res.json({ success: true, bookings, ordersByBooking });
+        res.json({ success: true, bookings, ordersByBooking, loyaltyBadge });
 
     } catch (err) {
         console.error(err);
@@ -611,17 +627,17 @@ router.get('/api/my-bookings', requireUser, async (req, res) => {
             `SELECT
                 b.*, u.username, u.name AS user_real_name,
                 COALESCE(orders.subtotal, 0) AS subtotal,
-                (COALESCE(orders.subtotal, 0) * 0.10) AS tax,
+                (COALESCE(orders.subtotal, 0) * 0.18) AS tax,
                 IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0) AS paperless_discount,
                 (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.10) 
+                    + (COALESCE(orders.subtotal, 0) * 0.18) 
                     - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
                     - COALESCE(b.discount, 0)
                 ) AS bill_amount,
                 GREATEST(0, (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.10) 
+                    + (COALESCE(orders.subtotal, 0) * 0.18) 
                     - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
                     - COALESCE(b.discount, 0) 
                     - COALESCE(b.adv_paid, 0)

@@ -190,6 +190,7 @@ export default function Dashboard() {
   const { name: HOTEL_NAME } = useHotel();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loyaltyBadge, setLoyaltyBadge] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
   const [passForm, setPassForm] = useState({ current: '', new: '', confirm: '' });
@@ -253,6 +254,7 @@ export default function Dashboard() {
           orders: (r.data.ordersByBooking || {})[b.id] || [],
         }));
         setBookings(bks.sort((a, b) => b.id - a.id));
+        setLoyaltyBadge(r.data.loyaltyBadge || false);
       }
     }).catch(console.error).finally(() => setLoading(false));
   }, [user]);
@@ -270,8 +272,13 @@ export default function Dashboard() {
             <div className="inline-flex items-center gap-3 bg-blue-600/10 text-blue-600 mb-6 py-2 px-6 rounded-full text-[10px] font-black uppercase tracking-[0.4em] border border-blue-600/20 shadow-xl">
                <Activity size={14} className="animate-pulse" /> {t('active')}
             </div>
-            <h1 className="font-serif italic text-5xl md:text-8xl font-bold text-[var(--theme-text)] leading-[1] md:leading-[0.85] tracking-tighter">
+            <h1 className="font-serif italic text-5xl md:text-8xl font-bold text-[var(--theme-text)] leading-[1] md:leading-[0.85] tracking-tighter flex items-center flex-wrap gap-4">
               {t('welcome_msg').split(' ')[0]} <span className="text-blue-600">{user.name?.split(' ')[0]}</span>
+              {loyaltyBadge && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-black px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-900 border border-yellow-300 shadow-[0_0_20px_rgba(245,158,11,0.5)] animate-pulse tracking-widest uppercase">
+                  👑 Loyalty Guest
+                </span>
+              )}
             </h1>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
