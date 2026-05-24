@@ -21,13 +21,12 @@ import AdminDashboard from './pages/Admin/AdminDashboard';
 import ChefDashboard from './pages/Admin/ChefDashboard';
 import WalkInPOS from './pages/Admin/WalkInPOS';
 import ManageMenu from './pages/Admin/ManageMenu';
-import Warehouse from './pages/Admin/Warehouse';
+import InventoryWarehouse from './pages/Admin/InventoryWarehouse';
 import BookingHistory from './pages/Admin/BookingHistory';
 import ChatWidget from './components/ChatWidget';
 import AdminChat from './pages/Admin/AdminChat';
 import AdminChatNotificationManager from './components/AdminChatNotificationManager';
 import PrintBill from './pages/Admin/PrintBill';
-import Inventory from './pages/Admin/Inventory';
 
 function AppContent() {
   const { fetchConfig, checkAuth, checkAdminAuth, isAuthLoading, isAdminLoading } = useStore();
@@ -81,8 +80,7 @@ function AppContent() {
           <Route path="/admin/chef" element={<ChefDashboard />} />
           <Route path="/admin/pos" element={<WalkInPOS />} />
           <Route path="/admin/menu" element={<ManageMenu />} />
-          <Route path="/admin/warehouse" element={<Warehouse />} />
-          <Route path="/admin/inventory" element={<Inventory />} />
+          <Route path="/admin/inventory" element={<InventoryWarehouse />} />
           <Route path="/admin/history" element={<BookingHistory />} />
           <Route path="/admin/chat" element={<AdminChat />} />
           <Route path="/admin/print/:bookingId" element={<PrintBill />} />

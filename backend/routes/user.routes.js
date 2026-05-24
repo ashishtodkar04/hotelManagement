@@ -98,11 +98,12 @@ router.post('/api/recommendations', (req, res) => {
 
     py.on('close', () => {
         try {
-            const result = JSON.parse(data);
-            res.json({ success: true, recommendations: result });
+            const jsonStr = data.substring(data.indexOf('{'), data.lastIndexOf('}') + 1);
+            const result = JSON.parse(jsonStr);
+            res.json(result);
         } catch (e) {
-            console.error("Parse error:", data);
-            res.json({ success: false, error: "Failed to parse recommendations" });
+            console.error("Failed to parse python output:", data);
+            res.status(500).json({ error: "Recommendation engine failed" });
         }
     });
 });
@@ -114,10 +115,12 @@ router.get('/api/recommend/:userId', (req, res) => {
     py.stdout.on('data', (chunk) => { data += chunk.toString(); });
     py.on('close', () => {
         try {
-            const result = JSON.parse(data);
+            const jsonStr = data.substring(data.indexOf('{'), data.lastIndexOf('}') + 1);
+            const result = JSON.parse(jsonStr);
             // Return spreading result to match frontend expectation of res.data.combo
             res.json({ success: true, ...result });
         } catch (e) {
+            console.error("Python Output Error:", data);
             res.json({ success: false, combo: {} });
         }
     });
@@ -309,10 +312,10 @@ router.get('/', async (req, res) => {
 // ================= MENU =================
 router.get('/menu', async (req, res) => {
     try {
-        const [starters] = await db.execute("SELECT * FROM dishes WHERE category='Starter' AND is_available=1");
-        const [mains]    = await db.execute("SELECT * FROM dishes WHERE category='Main Course' AND is_available=1");
-        const [desserts] = await db.execute("SELECT * FROM dishes WHERE category='Dessert' AND is_available=1");
-        const [drinks]   = await db.execute("SELECT * FROM dishes WHERE category='Drinks' AND is_available=1");
+        const [starters] = await db.execute("SELECT * FROM dishes WHERE category='Starter'");
+        const [mains]    = await db.execute("SELECT * FROM dishes WHERE category='Main Course'");
+        const [desserts] = await db.execute("SELECT * FROM dishes WHERE category='Dessert'");
+        const [drinks]   = await db.execute("SELECT * FROM dishes WHERE category='Drinks'");
 
         res.json({ 
             success: true, 

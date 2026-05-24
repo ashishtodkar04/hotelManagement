@@ -32,10 +32,9 @@ export default function Navbar() {
     // Professional Navigation Hub
     if (isAdmin) {
       navLinks.push({ name: 'Management', path: '/admin' });
-      navLinks.push({ name: 'Inventory', path: '/admin/inventory' });
+      navLinks.push({ name: 'Logistics', path: '/admin/inventory' });
       navLinks.push({ name: 'Concierge Chat', path: '/admin/chat', showBadge: true });
     }
-    navLinks.push({ name: 'Warehouse', path: '/admin/warehouse' });
     navLinks.push({ name: 'Kitchen', path: '/admin/chef' });
     navLinks.push({ name: 'Walk-in POS', path: '/admin/pos' });
   } else {

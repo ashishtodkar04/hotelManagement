@@ -28,17 +28,17 @@ except:
     user_id_input = None
 
 # Get DB credentials from env
-db_user = os.getenv('DB_USER', 'root')
-db_pass = os.getenv('DB_PASSWORD', 'ashish07')
-db_host = os.getenv('DB_HOST', '127.0.0.1')
-db_name = os.getenv('DB_NAME', 'hotel')
+db_user = os.getenv('DB_USER')
+db_pass = os.getenv('DB_PASSWORD')
+db_host = os.getenv('DB_HOST')
+db_name = os.getenv('DB_NAME')
 
 engine = create_engine(f"mysql+pymysql://{db_user}:{db_pass}@{db_host}/{db_name}")
 
 def advanced_combo(user_id):
     result = {}
     # Use database-correct categories
-    categories = ['Starter', 'Main Course', 'Dessert']
+    categories = ['Starter', 'Main Course', 'Dessert' , 'Drinks']
 
     for cat in categories:
         # 1️⃣ USER PREFERENCE
@@ -156,4 +156,4 @@ output = {
     "combo": res_combo
 }
 
-print(json.dumps(output))
+print(json.dumps(output))

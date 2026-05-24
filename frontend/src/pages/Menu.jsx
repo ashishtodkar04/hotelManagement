@@ -13,7 +13,12 @@ const TABS = [
 
 function DishCard({ dish, tabEmoji }) {
   return (
-    <div className="glass p-6 md:p-8 flex flex-col h-full group hover:-translate-y-3 hover:shadow-2xl transition-all duration-700 relative overflow-hidden">
+    <div className={`glass p-6 md:p-8 flex flex-col h-full group hover:-translate-y-3 hover:shadow-2xl transition-all duration-700 relative overflow-hidden ${!dish.is_available ? 'opacity-60 grayscale' : ''}`}>
+      {!dish.is_available && (
+        <div className="absolute top-4 left-4 z-30 bg-slate-800 text-slate-300 text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-slate-600">
+          OUT OF STOCK
+        </div>
+      )}
       <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-125 transition-transform duration-700 pointer-events-none">
          <Utensils size={100} />
       </div>
@@ -52,9 +57,15 @@ function DishCard({ dish, tabEmoji }) {
       </div>
 
       <div className="pt-6 md:pt-8 border-t border-[var(--theme-border)] mt-auto">
-        <Link to="/booking" className="btn-primary w-full py-4 md:py-5 rounded-2xl shadow-xl text-[9px] md:text-[10px]">
-          SECURE RESERVATION <ChevronRight size={16} />
-        </Link>
+        {dish.is_available ? (
+          <Link to="/booking" className="btn-primary w-full py-4 md:py-5 rounded-2xl shadow-xl text-[9px] md:text-[10px]">
+            SECURE RESERVATION <ChevronRight size={16} />
+          </Link>
+        ) : (
+          <button disabled className="w-full py-4 md:py-5 rounded-2xl bg-slate-500/20 text-slate-400 cursor-not-allowed font-black text-[9px] md:text-[10px] uppercase tracking-widest border border-slate-500/30">
+            CURRENTLY UNAVAILABLE
+          </button>
+        )}
       </div>
     </div>
   );
