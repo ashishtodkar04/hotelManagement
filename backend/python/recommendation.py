@@ -33,7 +33,19 @@ db_pass = os.getenv('DB_PASSWORD')
 db_host = os.getenv('DB_HOST')
 db_name = os.getenv('DB_NAME')
 
-engine = create_engine(f"mysql+pymysql://{db_user}:{db_pass}@{db_host}/{db_name}")
+# Mirror Node's SSL connection configuration for TiDB Cloud connectivity
+connect_args = {}
+ssl_config = {}
+if os.getenv('DB_SSL_REJECT_UNAUTHORIZED') == 'false':
+    ssl_config = {"ssl_check_hostname": False}
+
+# TiDB Cloud connections require SSL
+connect_args["ssl"] = ssl_config
+
+engine = create_engine(
+    f"mysql+pymysql://{db_user}:{db_pass}@{db_host}/{db_name}",
+    connect_args=connect_args
+)
 
 def advanced_combo(user_id):
     result = {}

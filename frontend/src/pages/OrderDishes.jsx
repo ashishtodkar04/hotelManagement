@@ -206,17 +206,27 @@ export default function OrderDishes() {
                    <h3 className="text-[11px] font-black text-blue-600 uppercase tracking-[0.4em]">Curated Pairings For You</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {Object.keys(recommendations).map(cat => (
-                    <button 
-                      key={cat} 
-                      onClick={() => addToCart(recommendations[cat])}
-                      className="glass p-6 text-left group hover:border-blue-600 transition-all"
-                    >
-                      <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">{cat}</div>
-                      <div className="font-serif italic font-bold text-lg text-[var(--theme-text)] group-hover:text-blue-600 transition-colors mb-1 truncate">{recommendations[cat].name}</div>
-                      <div className="text-xs text-blue-600/60 font-bold leading-tight">{recommendations[cat].reason.split('+')[0]}</div>
-                    </button>
-                  ))}
+                  {Object.keys(recommendations).map(cat => {
+                    const dish = recommendations[cat];
+                    const isAvailable = dish.is_available !== 0;
+                    return (
+                      <button 
+                        key={cat} 
+                        onClick={() => isAvailable && addToCart(dish)}
+                        disabled={!isAvailable}
+                        className={`glass p-6 text-left group transition-all ${isAvailable ? 'hover:border-blue-600' : 'opacity-50 grayscale cursor-not-allowed'}`}
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{cat}</div>
+                          {!isAvailable && (
+                            <span className="text-[7px] font-black bg-rose-600 text-white px-2 py-0.5 rounded-full uppercase">SOLD OUT</span>
+                          )}
+                        </div>
+                        <div className="font-serif italic font-bold text-lg text-[var(--theme-text)] group-hover:text-blue-600 transition-colors mb-1 truncate">{dish.name}</div>
+                        <div className="text-xs text-blue-600/60 font-bold leading-tight">{dish.reason.split('+')[0]}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -252,8 +262,9 @@ export default function OrderDishes() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
               {filtered.map(dish => {
                 const inCart = cart.find(i => i.id === dish.id);
+                const isAvailable = dish.is_available !== 0;
                 return (
-                  <div key={dish.id} className="glass p-8 flex items-center gap-6 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-700">
+                  <div key={dish.id} className={`glass p-8 flex items-center gap-6 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-700 ${!isAvailable ? 'opacity-50 grayscale' : ''}`}>
                     <div className="w-24 h-24 rounded-[1.5rem] overflow-hidden bg-[var(--theme-accent)] flex items-center justify-center shrink-0 relative border border-[var(--theme-border)]">
                       {dish.image
                         ? <img src={dish.image.startsWith('http') ? dish.image : `${getApiUrl()}${dish.image}`} alt={dish.name} className="w-full h-full object-cover transition-transform group-hover:scale-125 duration-[2s] ease-out" />
@@ -264,6 +275,11 @@ export default function OrderDishes() {
                           {dish.type === 'veg' ? <Leaf size={12} className="text-white" /> : <Flame size={12} className="text-white" />}
                         </div>
                       )}
+                      {!isAvailable && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <span className="text-[8px] font-black tracking-widest text-white bg-rose-600 px-2.5 py-1 rounded-full uppercase">SOLD OUT</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -271,20 +287,26 @@ export default function OrderDishes() {
                       <div className="text-2xl font-black text-slate-400 dark:text-slate-600 font-serif tracking-tight">₹{dish.price}</div>
                     </div>
 
-                    {inCart ? (
-                      <div className="flex flex-col items-center gap-2 bg-[var(--theme-accent)] rounded-2xl p-1.5 border border-[var(--theme-border)] shadow-inner">
-                        <button onClick={() => addToCart(dish)} className="w-8 h-8 rounded-xl flex items-center justify-center text-blue-600 hover:bg-blue-600 hover:text-white transition-all">
-                          <Plus size={16} />
+                    {isAvailable ? (
+                      inCart ? (
+                        <div className="flex flex-col items-center gap-2 bg-[var(--theme-accent)] rounded-2xl p-1.5 border border-[var(--theme-border)] shadow-inner">
+                          <button onClick={() => addToCart(dish)} className="w-8 h-8 rounded-xl flex items-center justify-center text-blue-600 hover:bg-blue-600 hover:text-white transition-all">
+                            <Plus size={16} />
+                          </button>
+                          <span className="w-6 text-center text-sm font-black text-blue-600">{inCart.qty}</span>
+                          <button onClick={() => updateQty(dish.id, -1)} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all">
+                            <Minus size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => addToCart(dish)} className="w-14 h-14 rounded-2xl bg-blue-600/5 text-blue-600 hover:bg-blue-600 hover:text-white transition-all duration-700 flex items-center justify-center shadow-sm border border-blue-600/10">
+                          <Plus size={28} />
                         </button>
-                        <span className="w-6 text-center text-sm font-black text-blue-600">{inCart.qty}</span>
-                        <button onClick={() => updateQty(dish.id, -1)} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all">
-                          <Minus size={16} />
-                        </button>
-                      </div>
+                      )
                     ) : (
-                      <button onClick={() => addToCart(dish)} className="w-14 h-14 rounded-2xl bg-blue-600/5 text-blue-600 hover:bg-blue-600 hover:text-white transition-all duration-700 flex items-center justify-center shadow-sm border border-blue-600/10">
-                        <Plus size={28} />
-                      </button>
+                      <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center border border-slate-200 dark:border-slate-700 cursor-not-allowed">
+                        <X size={20} />
+                      </div>
                     )}
                   </div>
                 );

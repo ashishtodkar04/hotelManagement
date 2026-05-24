@@ -120,6 +120,31 @@ async function migrate() {
   await alter(`ALTER TABLE messages ADD COLUMN is_read TINYINT(1) DEFAULT 0`, 'messages.is_read');
   await alter(`ALTER TABLE users ADD COLUMN is_banned TINYINT(1) DEFAULT 0`, 'users.is_banned');
 
+  // --- inventory_items ---
+  await alter(`
+    CREATE TABLE IF NOT EXISTS inventory_items (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      unit VARCHAR(50) NOT NULL,
+      current_stock DECIMAL(10,2) DEFAULT 0.00,
+      low_stock_threshold DECIMAL(10,2) DEFAULT 0.00,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, 'inventory_items table');
+
+  // --- dish_recipe ---
+  await alter(`
+    CREATE TABLE IF NOT EXISTS dish_recipe (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      dish_id INT NOT NULL,
+      inventory_item_id INT NOT NULL,
+      quantity_deducted DECIMAL(10,2) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE CASCADE,
+      FOREIGN KEY (inventory_item_id) REFERENCES inventory_items(id) ON DELETE CASCADE
+    )
+  `, 'dish_recipe table');
+
   console.log('\n🎉 Migration complete!');
   process.exit(0);
 }

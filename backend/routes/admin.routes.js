@@ -323,6 +323,18 @@ router.post('/walk-in', requireStaffOrAdmin, async (req, res) => {
         }
 
         if (cart && cart.length > 0) {
+            // Verify all ordered dishes are available
+            const dishIds = cart.map(i => Number(i.id)).filter(Boolean);
+            if (dishIds.length > 0) {
+                const [dishesCheck] = await conn.query("SELECT id, name, is_available FROM dishes WHERE id IN (?)", [dishIds]);
+                for (const d of dishesCheck) {
+                    if (d.is_available === 0) {
+                        await conn.rollback();
+                        return res.status(400).json({ success: false, error: `Dish "${d.name}" is currently out of stock / unavailable.` });
+                    }
+                }
+            }
+
             const orderValues = cart.map(item => [
                 bookingId, item.id, item.qty, item.price, item.qty * item.price, 'ordered'
             ]);
@@ -332,7 +344,7 @@ router.post('/walk-in', requireStaffOrAdmin, async (req, res) => {
             );
 
             const { deductInventoryForOrders } = require('../services/inventoryService');
-            deductInventoryForOrders(cart.map(i => ({ dishId: i.id, quantity: i.qty })));
+            await deductInventoryForOrders(cart.map(i => ({ dishId: i.id, quantity: i.qty })), conn);
         }
 
         // 💰 Record as 'pending' for manual admin verification
@@ -447,20 +459,26 @@ router.post('/chef/update-order', requireStaffOrAdmin, async (req, res) => {
 
 // ✅ 5. STANDARD UPDATE/DELETE ROUTES
 router.post('/update-status', requireAdmin, validate(schemas.updateBookingStatus), async (req, res) => {
+    const conn = await db.getConnection();
     try {
         const { bookingId, status } = req.body;
+        await conn.beginTransaction();
 
         if (status === 'completed') {
-            const [check] = await db.execute('SELECT payment_verified, final_payment_verified, final_bill_expected, paid_amount, user_id FROM bookings WHERE id = ?', [bookingId]);
-            if (!check[0]) return res.status(404).json({ error: "Booking not found" });
+            const [check] = await conn.execute('SELECT payment_verified, final_payment_verified, final_bill_expected, paid_amount, user_id FROM bookings WHERE id = ?', [bookingId]);
+            if (!check[0]) {
+                await conn.rollback();
+                return res.status(404).json({ error: "Booking not found" });
+            }
 
             if (check[0].payment_verified === 0) {
+                await conn.rollback();
                 return res.status(400).json({ error: "Cannot mark completed. Advance payment is not verified!" });
             }
 
             const userId = check[0].user_id;
 
-            const [data] = await db.execute(`
+            const [data] = await conn.execute(`
                 SELECT 
                     COALESCE(SUM(o.total_price), 0) as subtotal,
                     COALESCE(MAX(b.discount), 0) as special_discount,
@@ -483,22 +501,32 @@ router.post('/update-status', requireAdmin, validate(schemas.updateBookingStatus
             const totalToPay = parseFloat(Math.max(0, (subtotal + tax) - specialDiscount - paperlessDiscount).toFixed(2));
 
             if (totalPaidOverall < (totalToPay - 1)) { 
+                await conn.rollback();
                 return res.status(400).json({ error: `Cannot mark completed. Total paid (₹${totalPaidOverall.toFixed(2)}) is less than total due (₹${totalToPay.toFixed(2)}).` });
             }
 
-            await db.execute(
+            await conn.execute(
                 'UPDATE bookings SET status = ?, bill_amount = ?, final_payment_verified = 1 WHERE id = ?',
                 [status, totalToPay, bookingId]
             );
         } else {
-            await db.execute('UPDATE bookings SET status = ? WHERE id = ?', [status, bookingId]);
+            // If it is being cancelled, fetch previous status to check if we need to refund stock
+            if (status === 'cancelled') {
+                const [check] = await conn.execute("SELECT status FROM bookings WHERE id = ?", [bookingId]);
+                const prevStatus = check[0]?.status;
+                if (prevStatus && prevStatus !== 'cancelled' && prevStatus !== 'completed') {
+                    const { cancelBookingsAndRestoreStock } = require('../services/inventoryService');
+                    await cancelBookingsAndRestoreStock([bookingId], conn);
+                }
+            }
+            await conn.execute('UPDATE bookings SET status = ? WHERE id = ?', [status, bookingId]);
         }
 
         if (status === 'cancelled') {
-            const [bRow] = await db.execute('SELECT user_id FROM bookings WHERE id = ?', [bookingId]);
+            const [bRow] = await conn.execute('SELECT user_id FROM bookings WHERE id = ?', [bookingId]);
             if (bRow[0] && bRow[0].user_id && bRow[0].user_id !== 0) {
                 const userId = bRow[0].user_id;
-                const [countRes] = await db.execute(`
+                const [countRes] = await conn.execute(`
                     SELECT (
                         SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'cancelled'
                     ) + (
@@ -508,19 +536,34 @@ router.post('/update-status', requireAdmin, validate(schemas.updateBookingStatus
 
                 const cancelCount = countRes[0]?.cancel_count || 0;
                 if (cancelCount >= 3) {
-                    await db.execute('UPDATE users SET is_banned = 1 WHERE id = ?', [userId]);
-                    await db.execute(
-                        "UPDATE bookings SET status = 'cancelled' WHERE user_id = ? AND id != ? AND status NOT IN ('completed', 'cancelled')",
+                    await conn.execute('UPDATE users SET is_banned = 1 WHERE id = ?', [userId]);
+                    
+                    // Fetch bookings to cancel for this user (auto-cancel)
+                    const [bookingsToCancel] = await conn.execute(
+                        "SELECT id FROM bookings WHERE user_id = ? AND id != ? AND status NOT IN ('completed', 'cancelled')",
                         [userId, bookingId]
                     );
+                    const bIds = bookingsToCancel.map(b => b.id);
+                    if (bIds.length > 0) {
+                        const { cancelBookingsAndRestoreStock } = require('../services/inventoryService');
+                        await cancelBookingsAndRestoreStock(bIds, conn);
+                        await conn.query(
+                            "UPDATE bookings SET status = 'cancelled' WHERE id IN (?)",
+                            [bIds]
+                        );
+                    }
                     console.log(`[AUTO-BAN] User ${userId} banned due to ${cancelCount} cancellations.`);
                 }
             }
         }
 
+        await conn.commit();
         res.json({ success: true });
     } catch (err) {
+        await conn.rollback();
         res.status(500).json({ error: err.message });
+    } finally {
+        conn.release();
     }
 });
 
@@ -760,9 +803,18 @@ router.post('/update-table', requireAdmin, async (req, res) => {
 router.delete('/delete/:id', requireAdmin, async (req, res) => {
     const conn = await db.getConnection();
     try {
+        const bookingId = Number(req.params.id);
         await conn.beginTransaction();
-        await conn.execute('DELETE FROM orders WHERE booking_id=?', [Number(req.params.id)]);
-        await conn.execute('DELETE FROM bookings WHERE id=?', [Number(req.params.id)]);
+
+        const [bRow] = await conn.execute("SELECT status FROM bookings WHERE id = ?", [bookingId]);
+        const bookingStatus = bRow[0]?.status;
+        if (bookingStatus && bookingStatus !== 'completed' && bookingStatus !== 'cancelled') {
+            const { cancelBookingsAndRestoreStock } = require('../services/inventoryService');
+            await cancelBookingsAndRestoreStock([bookingId], conn);
+        }
+
+        await conn.execute('DELETE FROM orders WHERE booking_id=?', [bookingId]);
+        await conn.execute('DELETE FROM bookings WHERE id=?', [bookingId]);
         await conn.commit();
         res.json({ success: true });
     } catch (err) {
@@ -1044,25 +1096,44 @@ router.get('/search-customer', requireAdmin, async (req, res) => {
 });
 
 router.post('/users/:id/toggle-ban', requireAdmin, async (req, res) => {
+    const conn = await db.getConnection();
     try {
         const userId = Number(req.params.id);
-        const [user] = await db.execute('SELECT is_banned FROM users WHERE id = ?', [userId]);
-        if (!user[0]) return res.status(404).json({ success: false, error: 'User not found' });
+        await conn.beginTransaction();
 
-        const nextBanStatus = user[0].is_banned ? 0 : 1;
-        await db.execute('UPDATE users SET is_banned = ? WHERE id = ?', [nextBanStatus, userId]);
-
-        if (nextBanStatus === 1) {
-            // Cancel all active bookings if user is banned
-            await db.execute(
-                "UPDATE bookings SET status = 'cancelled' WHERE user_id = ? AND status NOT IN ('completed', 'cancelled')",
-                [userId]
-            );
+        const [user] = await conn.execute('SELECT is_banned FROM users WHERE id = ?', [userId]);
+        if (!user[0]) {
+            await conn.rollback();
+            return res.status(404).json({ success: false, error: 'User not found' });
         }
 
+        const nextBanStatus = user[0].is_banned ? 0 : 1;
+        await conn.execute('UPDATE users SET is_banned = ? WHERE id = ?', [nextBanStatus, userId]);
+
+        if (nextBanStatus === 1) {
+            // Find all active bookings for this user
+            const [activeBookings] = await conn.execute(
+                "SELECT id FROM bookings WHERE user_id = ? AND status NOT IN ('completed', 'cancelled')",
+                [userId]
+            );
+            const bIds = activeBookings.map(b => b.id);
+            if (bIds.length > 0) {
+                const { cancelBookingsAndRestoreStock } = require('../services/inventoryService');
+                await cancelBookingsAndRestoreStock(bIds, conn);
+                await conn.query(
+                    "UPDATE bookings SET status = 'cancelled' WHERE id IN (?)",
+                    [bIds]
+                );
+            }
+        }
+
+        await conn.commit();
         res.json({ success: true, is_banned: nextBanStatus });
     } catch (err) {
+        await conn.rollback();
         res.status(500).json({ success: false, error: err.message });
+    } finally {
+        conn.release();
     }
 });
 

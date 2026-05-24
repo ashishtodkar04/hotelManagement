@@ -25,9 +25,23 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 
-function requireUser(req, res, next) {
-    if (req.session?.user?.id) return next();
-    return res.status(401).json({ success: false, error: 'User not logged in' });
+async function requireUser(req, res, next) {
+    if (!req.session?.user?.id) {
+        return res.status(401).json({ success: false, error: 'User not logged in' });
+    }
+    try {
+        const [rows] = await db.execute("SELECT is_banned FROM users WHERE id = ?", [req.session.user.id]);
+        if (rows[0] && rows[0].is_banned === 1) {
+            req.session.destroy(() => {
+                res.status(403).json({ success: false, error: 'Your account has been suspended due to inappropriate behavior or excessive cancellations.' });
+            });
+            return;
+        }
+        return next();
+    } catch (err) {
+        console.error("requireUser DB error:", err);
+        return res.status(500).json({ success: false, error: 'Internal verification failed' });
+    }
 }
 
 function validateRegister(req, res, next) {
@@ -84,7 +98,7 @@ router.post('/api/recommendations', (req, res) => {
 
     // Removed logging
 
-    const py = spawn('python', ['python/recommendation.py', String(userId)]);
+    const py = spawn(process.env.PYTHON_CMD || 'python', ['python/recommendation.py', String(userId)]);
 
     let data = '';
 
@@ -110,7 +124,7 @@ router.post('/api/recommendations', (req, res) => {
 
 router.get('/api/recommend/:userId', (req, res) => {
     const userId = req.params.userId || 0;
-    const py = spawn('python', ['python/recommendation.py', String(userId)]);
+    const py = spawn(process.env.PYTHON_CMD || 'python', ['python/recommendation.py', String(userId)]);
     let data = '';
     py.stdout.on('data', (chunk) => { data += chunk.toString(); });
     py.on('close', () => {
@@ -223,6 +237,9 @@ router.post('/api/google-login', async (req, res) => {
 
         
         user = users[0];
+        if (user.is_banned === 1) {
+            return res.status(403).json({ success: false, error: "Your account has been suspended due to inappropriate behavior or excessive cancellations." });
+        }
         req.session.user = user;
         req.session.save(() => {
             res.json({ success: true, user: { id: user.id, name: user.name, username: user.username, email: user.email } });
@@ -421,6 +438,17 @@ router.post('/booking', requireUser, validateBooking, async (req, res) => {
         const bookingId = bookingInsert.insertId;
 
         if (Array.isArray(cart) && cart.length > 0) {
+            // Verify all ordered dishes are available
+            const dishIds = cart.map(i => Number(i.id)).filter(Boolean);
+            if (dishIds.length > 0) {
+                const [dishesCheck] = await conn.query("SELECT id, name, is_available FROM dishes WHERE id IN (?)", [dishIds]);
+                for (const d of dishesCheck) {
+                    if (d.is_available === 0) {
+                        await conn.rollback();
+                        return res.status(400).json({ success: false, error: `Dish "${d.name}" is currently out of stock / unavailable.` });
+                    }
+                }
+            }
             const orderValues = cart
                 .map((item) => {
                     const dishId = Number(item.id);
@@ -1020,41 +1048,76 @@ router.post('/api/add-order', requireUser, async (req, res) => {
             return res.status(400).json({ error: "Invalid data" });
         }
 
-        const [booking] = await db.execute(
-            "SELECT id FROM bookings WHERE id=? AND user_id=?",
-            [bookingIdNum, req.session.user.id]
-        );
-        if (booking.length === 0) {
-            return res.status(403).json({ error: "Unauthorized booking" });
-        }
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
 
-        const values = items.map(item => {
-            const dishId = Number(item.id);
-            const qty = Math.max(1, Number(item.qty) || 1);
-            const price = Number(item.price) || 0;
-
-            if (!dishId) {
-                throw new Error("Invalid dish ID");
+            const [booking] = await conn.execute(
+                "SELECT id, status FROM bookings WHERE id=? AND user_id=?",
+                [bookingIdNum, req.session.user.id]
+            );
+            if (booking.length === 0) {
+                await conn.rollback();
+                return res.status(403).json({ error: "Unauthorized booking" });
             }
 
-            return [
-                bookingIdNum,
-                dishId,
-                qty,
-                price,
-                qty * price,
-                'ordered'
-            ];
-        });
+            const currentStatus = booking[0].status;
+            if (['completed', 'cancelled'].includes(currentStatus)) {
+                await conn.rollback();
+                return res.status(400).json({ error: "Order modifications are not allowed for completed or cancelled bookings." });
+            }
 
-        await db.query(
-            `INSERT INTO orders 
-            (booking_id, dish_id, quantity, price_at_order, total_price, order_status)
-            VALUES ?`,
-            [values]
-        );
+            // Verify all ordered dishes are available
+            const dishIds = items.map(i => Number(i.id)).filter(Boolean);
+            if (dishIds.length > 0) {
+                const [dishesCheck] = await conn.query("SELECT id, name, is_available FROM dishes WHERE id IN (?)", [dishIds]);
+                for (const d of dishesCheck) {
+                    if (d.is_available === 0) {
+                        await conn.rollback();
+                        return res.status(400).json({ error: `Dish "${d.name}" is currently out of stock / unavailable.` });
+                    }
+                }
+            }
 
-        res.json({ success: true });
+            const values = items.map(item => {
+                const dishId = Number(item.id);
+                const qty = Math.max(1, Number(item.qty) || 1);
+                const price = Number(item.price) || 0;
+
+                if (!dishId) {
+                    throw new Error("Invalid dish ID");
+                }
+
+                return [
+                    bookingIdNum,
+                    dishId,
+                    qty,
+                    price,
+                    qty * price,
+                    'ordered'
+                ];
+            });
+
+            await conn.query(
+                `INSERT INTO orders 
+                (booking_id, dish_id, quantity, price_at_order, total_price, order_status)
+                VALUES ?`,
+                [values]
+            );
+
+            // Deduct stock levels for newly added items
+            const { deductInventoryForOrders } = require('../services/inventoryService');
+            await deductInventoryForOrders(items.map(i => ({ dishId: Number(i.id), quantity: Math.max(1, Number(i.qty) || 1) })), conn);
+
+            await conn.commit();
+            res.json({ success: true });
+
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
+        }
 
     } catch (err) {
         console.error("ORDER ERROR:", err);
@@ -1120,6 +1183,27 @@ router.post('/api/sync-order', requireUser, async (req, res) => {
                 }
             }
 
+            // Verify that any newly added or increased items are currently available
+            const dishIdsToCheck = [];
+            for (const item of items) {
+                const dishId = Number(item.id);
+                const targetQty = Number(item.qty);
+                const currentQty = existingMap.get(dishId) || 0;
+                if (targetQty > currentQty) {
+                    dishIdsToCheck.push(dishId);
+                }
+            }
+            if (dishIdsToCheck.length > 0) {
+                const [dishesCheck] = await conn.query("SELECT id, name, is_available FROM dishes WHERE id IN (?)", [dishIdsToCheck]);
+                for (const d of dishesCheck) {
+                    if (d.is_available === 0) {
+                        await conn.rollback();
+                        return res.status(400).json({ error: `Dish "${d.name}" is currently out of stock / unavailable.` });
+                    }
+                }
+            }
+
+            const adjustments = [];
             // Perform updates for increases and inserts for new items
             for (const item of items) {
                 const dishId = Number(item.id);
@@ -1133,6 +1217,7 @@ router.post('/api/sync-order', requireUser, async (req, res) => {
                             "UPDATE orders SET quantity = ?, total_price = ? * price_at_order WHERE booking_id = ? AND dish_id = ?",
                             [targetQty, targetQty, bookingIdNum, dishId]
                         );
+                        adjustments.push({ dishId, quantityChange: targetQty - currentQty });
                     }
                 } else {
                     await conn.execute(
@@ -1140,10 +1225,64 @@ router.post('/api/sync-order', requireUser, async (req, res) => {
                          VALUES (?, ?, ?, ?, ?, 'ordered')`,
                         [bookingIdNum, dishId, targetQty, price, targetQty * price]
                     );
+                    adjustments.push({ dishId, quantityChange: targetQty });
                 }
             }
+
+            if (adjustments.length > 0) {
+                const { adjustInventoryForOrders } = require('../services/inventoryService');
+                await adjustInventoryForOrders(adjustments, conn);
+            }
+
         } else {
             // Before seating: Full sync (clear and rewrite)
+            const [existingOrders] = await conn.execute(
+                "SELECT dish_id, quantity FROM orders WHERE booking_id = ?",
+                [bookingIdNum]
+            );
+
+            const existingMap = new Map();
+            existingOrders.forEach(o => {
+                existingMap.set(Number(o.dish_id), Number(o.quantity));
+            });
+
+            // Verify that any newly added or increased items are currently available
+            const dishIdsToCheck = [];
+            for (const item of items) {
+                const dishId = Number(item.id);
+                const targetQty = Number(item.qty);
+                const currentQty = existingMap.get(dishId) || 0;
+                if (targetQty > currentQty) {
+                    dishIdsToCheck.push(dishId);
+                }
+            }
+            if (dishIdsToCheck.length > 0) {
+                const [dishesCheck] = await conn.query("SELECT id, name, is_available FROM dishes WHERE id IN (?)", [dishIdsToCheck]);
+                for (const d of dishesCheck) {
+                    if (d.is_available === 0) {
+                        await conn.rollback();
+                        return res.status(400).json({ error: `Dish "${d.name}" is currently out of stock / unavailable.` });
+                    }
+                }
+            }
+
+            // Calculate stock adjustments
+            const newMap = new Map();
+            items.forEach(item => {
+                newMap.set(Number(item.id), Number(item.qty));
+            });
+
+            const adjustments = [];
+            const allDishIds = new Set([...existingMap.keys(), ...newMap.keys()]);
+            for (const dishId of allDishIds) {
+                const oldQty = existingMap.get(dishId) || 0;
+                const newQty = newMap.get(dishId) || 0;
+                const diff = newQty - oldQty;
+                if (diff !== 0) {
+                    adjustments.push({ dishId, quantityChange: diff });
+                }
+            }
+
             await conn.execute("DELETE FROM orders WHERE booking_id = ?", [bookingIdNum]);
 
             if (items.length > 0) {
@@ -1163,6 +1302,11 @@ router.post('/api/sync-order', requireUser, async (req, res) => {
                     [values]
                 );
             }
+
+            if (adjustments.length > 0) {
+                const { adjustInventoryForOrders } = require('../services/inventoryService');
+                await adjustInventoryForOrders(adjustments, conn);
+            }
         }
 
         await conn.commit();
@@ -1179,7 +1323,8 @@ router.post('/api/sync-order', requireUser, async (req, res) => {
 
 
 // SMS monitor APIs to get pending payments and manually verify from mobile verifier app
-router.get('/api/sms-monitor/pending-payments', async (req, res) => {
+// SMS monitor APIs to get pending payments and manually verify from mobile verifier app
+const pendingPaymentsHandler = async (req, res) => {
     try {
         const [rows] = await db.execute(`
             SELECT p.id, p.booking_id, p.amount, p.method, p.status, p.created_at, b.booking_ref, b.table_number,
@@ -1196,9 +1341,12 @@ router.get('/api/sms-monitor/pending-payments', async (req, res) => {
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
-});
+};
 
-router.post('/api/sms-monitor/verify-payment', async (req, res) => {
+router.get('/api/sms-monitor/pending-payments', pendingPaymentsHandler);
+router.get('/api/admin/pending-payments', pendingPaymentsHandler);
+
+const verifyPaymentHandler = async (req, res) => {
     const conn = await db.getConnection();
     try {
         const { bookingId, status } = req.body;
@@ -1209,7 +1357,10 @@ router.post('/api/sms-monitor/verify-payment', async (req, res) => {
             WHERE b.id=?`, [Number(bookingId)]
         );
         
-        if (rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+        if (rows.length === 0) {
+            conn.release();
+            return res.status(404).json({ error: 'Booking not found' });
+        }
 
         const booking = rows[0];
         const isApproved = status === 'approve';
@@ -1277,6 +1428,9 @@ router.post('/api/sms-monitor/verify-payment', async (req, res) => {
     } finally {
         conn.release();
     }
-});
+};
+
+router.post('/api/sms-monitor/verify-payment', verifyPaymentHandler);
+router.post('/api/user/verify-monitor-payment', verifyPaymentHandler);
 
 module.exports = router;

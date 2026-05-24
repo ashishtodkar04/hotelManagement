@@ -31,7 +31,6 @@ export default function ChefDashboard() {
     const interval = setInterval(() => fetchOrders(true), 30000);
 
     socket.connect();
-    socket.emit('join_admin');
 
     const handleUpdate = () => fetchOrders(true);
     socket.on('order_update', handleUpdate);

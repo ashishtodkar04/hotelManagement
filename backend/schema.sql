@@ -157,3 +157,25 @@ CREATE TABLE IF NOT EXISTS `messages` (
   `time` VARCHAR(20) DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 11. inventory_items
+CREATE TABLE IF NOT EXISTS `inventory_items` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(255) NOT NULL,
+  `unit` VARCHAR(50) NOT NULL,
+  `current_stock` DECIMAL(10,2) DEFAULT 0.00,
+  `low_stock_threshold` DECIMAL(10,2) DEFAULT 0.00,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 12. dish_recipe
+CREATE TABLE IF NOT EXISTS `dish_recipe` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `dish_id` INT NOT NULL,
+  `inventory_item_id` INT NOT NULL,
+  `quantity_deducted` DECIMAL(10,2) NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`dish_id`) REFERENCES `dishes` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`inventory_item_id`) REFERENCES `inventory_items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
