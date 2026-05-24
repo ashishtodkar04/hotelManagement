@@ -153,7 +153,7 @@ export default function Menu() {
                   <div className="absolute -top-3 left-8 z-20 px-4 py-1 bg-blue-600 text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg">
                     {cat}
                   </div>
-                  <DishCard dish={recommendations[cat]} tabEmoji={TABS.find(t => t.id === cat || t.id.includes(cat.split(' ')[0]))?.emoji || '✨'} />
+                  <DishCard dish={recommendations[cat]} tabEmoji={TABS.find(t => t.id.toLowerCase() === cat.toLowerCase() || t.id.toLowerCase().includes(cat.split(' ')[0].toLowerCase()))?.emoji || '✨'} />
                   <div className="mt-4 px-6 py-3 bg-blue-600/5 border border-blue-600/10 rounded-2xl">
                     <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-relaxed">
                        {recommendations[cat].reason}
