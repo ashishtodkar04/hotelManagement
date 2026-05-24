@@ -31,8 +31,6 @@ import {
   Trash2,
   Printer,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   BrainCircuit,
   TerminalSquare,
   Flame
@@ -280,6 +278,7 @@ export default function AdminDashboard() {
         });
       }
     } catch (err) {
+      console.error(err);
       alert('Failed to load checkout preview');
     }
   };
@@ -400,6 +399,7 @@ export default function AdminDashboard() {
       setSmsData({ phone: '', message: '' });
       alert('SMS queued for delivery via Gateway');
     } catch (err) {
+      console.error(err);
       alert('Failed to queue SMS');
     }
   };

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
-  Package, Plus, Trash2, Edit2, AlertCircle, ChevronLeft, 
-  ShoppingCart, Zap, Flame, Calendar, User, Shield, BookOpen, Layers
+  Package, Plus, Trash2, AlertCircle, ChevronLeft, 
+  Flame, BookOpen, Layers
 } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -11,7 +11,6 @@ import useStore from '../../store/useStore';
 export default function InventoryWarehouse() {
   const { isAdmin, isAdminLoading } = useStore();
   const [activeTab, setActiveTab] = useState('raw_materials'); // 'raw_materials', 'recipes', 'warehouse_logs'
-  const [loading, setLoading] = useState(true);
 
   // Raw Materials Data
   const [inventoryItems, setInventoryItems] = useState([]);
@@ -30,7 +29,6 @@ export default function InventoryWarehouse() {
 
   const fetchData = useCallback(async () => {
     if (isAdminLoading || !isAdmin) return;
-    setLoading(true);
     try {
       const [invRes, dishRes, wareRes] = await Promise.all([
         api.get('/api/admin/inventory'),
@@ -42,16 +40,17 @@ export default function InventoryWarehouse() {
       setWarehouseLogs(wareRes.data.items || []);
     } catch (err) {
       console.error('Fetch error:', err);
-    } finally {
-      setLoading(false);
     }
   }, [isAdmin, isAdminLoading]);
 
   useEffect(() => {
-    fetchData();
+    const t = setTimeout(() => {
+      fetchData();
+    }, 0);
     socket.connect();
     socket.on('warehouse_update', fetchData);
     return () => {
+      clearTimeout(t);
       socket.off('warehouse_update');
       socket.disconnect();
     };
@@ -65,20 +64,29 @@ export default function InventoryWarehouse() {
       setShowAddInv(false);
       setNewInvItem({ name: '', unit: 'kg', current_stock: 0, low_stock_threshold: 0 });
       fetchData();
-    } catch (err) { alert('Failed to add item'); }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to add item');
+    }
   };
   const updateInventoryItem = async (id, stock, threshold) => {
     try {
       await api.put(`/api/admin/inventory/${id}`, { current_stock: stock, low_stock_threshold: threshold });
       fetchData();
-    } catch (err) { alert('Failed to update item'); }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update item');
+    }
   };
   const deleteInventoryItem = async (id) => {
     if (!window.confirm('Delete this raw material?')) return;
     try {
       await api.delete(`/api/admin/inventory/${id}`);
       fetchData();
-    } catch (err) { alert('Failed to delete item'); }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete item');
+    }
   };
 
   // --- RECIPE BUILDER HANDLERS ---
@@ -87,7 +95,10 @@ export default function InventoryWarehouse() {
     try {
       const res = await api.get(`/api/admin/inventory/recipe/${dishId}`);
       setRecipeItems(res.data.recipe || []);
-    } catch (err) { alert('Failed to load recipe'); }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to load recipe');
+    }
   };
   const addRecipeItem = () => {
     setRecipeItems([...recipeItems, { inventory_item_id: '', quantity_deducted: 0 }]);
@@ -99,7 +110,10 @@ export default function InventoryWarehouse() {
       const ingredients = recipeItems.filter(r => r.inventory_item_id && Number(r.quantity_deducted) > 0);
       await api.post(`/api/admin/inventory/recipe/${selectedDish}`, { ingredients });
       alert('Recipe Saved! Raw materials will deduct automatically upon ordering.');
-    } catch (err) { alert('Failed to save recipe'); }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save recipe');
+    }
   };
 
   // --- WAREHOUSE LOGS HANDLERS ---
@@ -110,14 +124,20 @@ export default function InventoryWarehouse() {
       setShowAddLog(false);
       setNewLog({ name: '', type: 'grocery', quantity: '', unit: '', cost: '', date: new Date().toISOString().split('T')[0] });
       fetchData();
-    } catch (err) { alert('Failed to log expense'); }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to log expense');
+    }
   };
   const deleteWarehouseLog = async (id) => {
     if (!window.confirm('Delete this warehouse log?')) return;
     try {
       await api.delete(`/api/admin/warehouse/${id}`);
       fetchData();
-    } catch (err) { alert('Failed to delete log'); }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete log');
+    }
   };
 
   if (isAdminLoading) return <div className="p-8 text-white">Loading...</div>;

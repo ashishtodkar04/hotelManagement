@@ -46,7 +46,6 @@ export function playNotificationSound() {
 export default function AdminChatNotificationManager() {
   const { 
     isAdmin, 
-    isStaff, 
     adminActiveUserId, 
     setAdminThreads,
     setAdminOnlineUsers,
@@ -169,7 +168,6 @@ export default function AdminChatNotificationManager() {
     };
   }, [
     isAdmin, 
-    isStaff, 
     adminActiveUserId, 
     location.pathname, 
     setAdminThreads, 
@@ -191,7 +189,7 @@ export default function AdminChatNotificationManager() {
     return () => clearTimeout(timer);
   }, [toasts]);
 
-  if (!isAdmin && !isStaff) return null;
+  if (!isAdmin) return null;
 
   const removeToast = (id) => {
     setToasts(prev => prev.filter(t => t.id !== id));

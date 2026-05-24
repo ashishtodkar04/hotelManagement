@@ -10,7 +10,6 @@ import socket from '../../services/socket';
 export default function AdminChat() {
   const { 
     isAdmin, 
-    isStaff, 
     isAdminLoading,
     adminThreads,
     adminActiveUserId,

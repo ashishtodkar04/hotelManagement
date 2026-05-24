@@ -132,7 +132,8 @@ function normalizeChatMessage(data, sender) {
         sender,
         message: String(data.message),
         time: data.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        is_read: data.is_read || 0
+        is_read: data.is_read || 0,
+        created_at: data.created_at || new Date().toISOString()
     };
 }
 
@@ -160,7 +161,8 @@ async function getChatHistory(userId) {
             sender: r.sender,
             message: r.message,
             time: r.time,
-            is_read: r.is_read
+            is_read: r.is_read,
+            created_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString()
         }));
     } catch (err) {
         return [];
@@ -216,7 +218,8 @@ async function sendAutoReply(userId, userName) {
                 sender: 'admin',
                 message: replies[i],
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                is_read: 0
+                is_read: 0,
+                created_at: new Date().toISOString()
             };
             await storeChatMessage(autoMsg);
             io.to(`user_${userId}`).emit('receive_message', autoMsg);
