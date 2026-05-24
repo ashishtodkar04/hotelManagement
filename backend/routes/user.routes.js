@@ -148,6 +148,10 @@ router.post('/login', async (req, res) => {
 
         if (users.length === 0) return res.status(401).json({ success: false, error: "User not found" });
 
+        if (users[0].is_banned === 1) {
+            return res.status(403).json({ success: false, error: "Your account has been suspended due to inappropriate behavior or excessive cancellations." });
+        }
+
         const isMatch = await bcrypt.compare(password, users[0].password);
         if (!isMatch) return res.status(401).json({ success: false, error: "Wrong password" });
 
@@ -457,9 +461,20 @@ router.post('/booking', requireUser, validateBooking, async (req, res) => {
 });
 
 
-router.get('/api/check-auth', (req, res) => {
+router.get('/api/check-auth', async (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     if (req.session?.user?.id) {
+        try {
+            const [check] = await db.execute("SELECT is_banned FROM users WHERE id = ?", [req.session.user.id]);
+            if (check[0] && check[0].is_banned === 1) {
+                req.session.destroy(() => {
+                    res.json({ loggedIn: false });
+                });
+                return;
+            }
+        } catch (e) {
+            console.error("Auth check DB error:", e);
+        }
         return res.json({ loggedIn: true, user: req.session.user });
     }
     res.json({ loggedIn: false });
@@ -1072,35 +1087,82 @@ router.post('/api/sync-order', requireUser, async (req, res) => {
         }
 
         const currentStatus = bookings[0].status;
-        const restrictedStatuses = ['seated', 'completed', 'cancelled', 'awaiting_final_payment'];
-        
-        if (restrictedStatuses.includes(currentStatus)) {
+        const isSeatedOrLater = ['seated', 'awaiting_final_payment'].includes(currentStatus);
+        const isCancelledOrCompleted = ['completed', 'cancelled'].includes(currentStatus);
+
+        if (isCancelledOrCompleted) {
             await conn.rollback();
             return res.status(400).json({ 
-                error: `Order modifications are restricted while session is ${currentStatus}. Please contact staff for assistance.` 
+                error: `Order modifications are not allowed for completed or cancelled bookings.` 
             });
         }
 
-        // 2. Clear existing orders for this booking
-        await conn.execute("DELETE FROM orders WHERE booking_id = ?", [bookingIdNum]);
-
-        // 3. Insert new items if any
-        if (items.length > 0) {
-            const values = items.map(item => [
-                bookingIdNum,
-                Number(item.id),
-                Number(item.qty),
-                Number(item.price),
-                Number(item.qty) * Number(item.price),
-                'ordered'
-            ]);
-
-            await conn.query(
-                `INSERT INTO orders 
-                (booking_id, dish_id, quantity, price_at_order, total_price, order_status)
-                VALUES ?`,
-                [values]
+        if (isSeatedOrLater) {
+            // Fetch existing orders for this booking to verify no items are reduced
+            const [existingOrders] = await conn.execute(
+                "SELECT dish_id, quantity FROM orders WHERE booking_id = ?",
+                [bookingIdNum]
             );
+
+            const existingMap = new Map();
+            existingOrders.forEach(o => {
+                existingMap.set(Number(o.dish_id), Number(o.quantity));
+            });
+
+            // Verify that no existing items are decreased or deleted
+            for (const [dishId, qty] of existingMap.entries()) {
+                const newItem = items.find(item => Number(item.id) === dishId);
+                if (!newItem || Number(newItem.qty) < qty) {
+                    await conn.rollback();
+                    return res.status(400).json({
+                        error: "Once seated, existing orders cannot be reduced or cancelled. You can only add new items or increase quantities."
+                    });
+                }
+            }
+
+            // Perform updates for increases and inserts for new items
+            for (const item of items) {
+                const dishId = Number(item.id);
+                const targetQty = Number(item.qty);
+                const price = Number(item.price);
+
+                if (existingMap.has(dishId)) {
+                    const currentQty = existingMap.get(dishId);
+                    if (targetQty > currentQty) {
+                        await conn.execute(
+                            "UPDATE orders SET quantity = ?, total_price = ? * price_at_order WHERE booking_id = ? AND dish_id = ?",
+                            [targetQty, targetQty, bookingIdNum, dishId]
+                        );
+                    }
+                } else {
+                    await conn.execute(
+                        `INSERT INTO orders (booking_id, dish_id, quantity, price_at_order, total_price, order_status)
+                         VALUES (?, ?, ?, ?, ?, 'ordered')`,
+                        [bookingIdNum, dishId, targetQty, price, targetQty * price]
+                    );
+                }
+            }
+        } else {
+            // Before seating: Full sync (clear and rewrite)
+            await conn.execute("DELETE FROM orders WHERE booking_id = ?", [bookingIdNum]);
+
+            if (items.length > 0) {
+                const values = items.map(item => [
+                    bookingIdNum,
+                    Number(item.id),
+                    Number(item.qty),
+                    Number(item.price),
+                    Number(item.qty) * Number(item.price),
+                    'ordered'
+                ]);
+
+                await conn.query(
+                    `INSERT INTO orders 
+                    (booking_id, dish_id, quantity, price_at_order, total_price, order_status)
+                    VALUES ?`,
+                    [values]
+                );
+            }
         }
 
         await conn.commit();

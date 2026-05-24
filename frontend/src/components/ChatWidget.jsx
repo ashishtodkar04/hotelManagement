@@ -19,10 +19,16 @@ export default function ChatWidget() {
     if (!user) return;
 
     if (!socket.connected) socket.connect();
-    socket.emit('join_user', user.id);
 
-    // Initial mark read on connection
-    socket.emit('mark_read', { userId: user.id, sender: 'user' });
+    const onConnect = () => {
+      socket.emit('join_user', user.id);
+      socket.emit('mark_read', { userId: user.id, sender: 'user' });
+    };
+
+    socket.on('connect', onConnect);
+    if (socket.connected) {
+      onConnect();
+    }
 
     const handleMessage = (msg) => {
       if (String(msg.userId) === String(user.id)) {
@@ -59,6 +65,7 @@ export default function ChatWidget() {
     socket.on('messages_read', handleMessagesRead);
 
     return () => {
+      socket.off('connect', onConnect);
       socket.off('receive_message', handleMessage);
       socket.off('user_chat_history', handleHistory);
       socket.off('typing', handleTyping);

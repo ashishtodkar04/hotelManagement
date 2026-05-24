@@ -390,6 +390,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const toggleUserBan = async (userId, currentlyBanned) => {
+    const actionWord = currentlyBanned ? 'unban' : 'ban';
+    if (!window.confirm(`Are you sure you want to ${actionWord} this guest? Banning will automatically cancel all of their active bookings.`)) return;
+    try {
+      const res = await api.post(`/api/admin/users/${userId}/toggle-ban`);
+      if (res.data.success) {
+        alert(`Guest successfully ${res.data.is_banned ? 'banned' : 'unbanned'}.`);
+        const refreshRes = await api.get(`/api/admin/search-customer?query=${searchQuery}`);
+        if (refreshRes.data.success) {
+          setSearchResults(refreshRes.data);
+        }
+      }
+    } catch {
+      alert('Failed to update ban status.');
+    }
+  };
+
   const sendManualSms = async (e) => {
     e.preventDefault();
     if (!smsData.phone || !smsData.message) return;
@@ -537,10 +554,27 @@ export default function AdminDashboard() {
                     <div className="glass p-12 text-center opacity-40">No matching sovereign identities found.</div>
                   ) : (
                     searchResults.users.map(u => (
-                      <div key={u.id} className="glass p-10 border-blue-600/10 hover:border-blue-600 transition-all bg-[var(--theme-panel)]">
+                      <div key={u.id} className={`glass p-10 transition-all bg-[var(--theme-panel)] ${u.is_banned ? 'border-rose-500/30 hover:border-rose-500 bg-rose-500/[0.01]' : 'border-blue-600/10 hover:border-blue-600'}`}>
                         <div className="flex justify-between items-start mb-6">
                            <div className="text-2xl font-black tracking-tighter">{u.name} <span className="text-blue-600 text-sm">#{u.id}</span></div>
-                           <span className="text-[10px] font-black bg-blue-600/10 text-blue-600 px-4 py-1.5 rounded-full uppercase tracking-widest">Registered User</span>
+                           <div className="flex items-center gap-4">
+                             {u.is_banned ? (
+                               <span className="text-[10px] font-black bg-rose-500/10 text-rose-500 px-4 py-1.5 rounded-full uppercase tracking-widest animate-pulse">Banned Account</span>
+                             ) : (
+                               <span className="text-[10px] font-black bg-blue-600/10 text-blue-600 px-4 py-1.5 rounded-full uppercase tracking-widest">Registered User</span>
+                             )}
+                             <button
+                               type="button"
+                               onClick={() => toggleUserBan(u.id, u.is_banned)}
+                               className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border ${
+                                 u.is_banned 
+                                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-lg' 
+                                   : 'bg-rose-600/10 hover:bg-rose-600 hover:text-white border-rose-500/20 text-rose-400'
+                               }`}
+                             >
+                               {u.is_banned ? 'UNBAN' : 'BAN'}
+                             </button>
+                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
                           <div>

@@ -62,14 +62,21 @@ export default function AdminChatNotificationManager() {
   const soundCooldown = useRef(false);
 
   useEffect(() => {
-    // Only connect and listen if the user is an authorized admin/staff
+    // Only connect and listen if the user is an authorized admin
     if (!isAdmin) return;
 
     if (!socket.connected) {
       socket.connect();
     }
 
-    socket.emit('join_admin');
+    const onConnect = () => {
+      socket.emit('join_admin');
+    };
+
+    socket.on('connect', onConnect);
+    if (socket.connected) {
+      onConnect();
+    }
 
     // Register push notification permissions
     if ('Notification' in window && Notification.permission === 'default') {
@@ -159,6 +166,7 @@ export default function AdminChatNotificationManager() {
     socket.on('receive_message', handleReceiveMessage);
 
     return () => {
+      socket.off('connect', onConnect);
       socket.off('chat_history', handleChatHistory);
       socket.off('online_users_list', handleOnlineUsersList);
       socket.off('user_status', handleUserStatus);

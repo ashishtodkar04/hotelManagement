@@ -118,6 +118,7 @@ async function migrate() {
     )
   `, 'messages table');
   await alter(`ALTER TABLE messages ADD COLUMN is_read TINYINT(1) DEFAULT 0`, 'messages.is_read');
+  await alter(`ALTER TABLE users ADD COLUMN is_banned TINYINT(1) DEFAULT 0`, 'users.is_banned');
 
   console.log('\n🎉 Migration complete!');
   process.exit(0);

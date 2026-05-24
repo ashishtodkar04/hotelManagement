@@ -87,8 +87,8 @@ export default function AdminChat() {
 
   const activeThread = adminThreads.find(t => t.userId === adminActiveUserId);
   const filteredThreads = adminThreads.filter(t => 
-    t.userName.toLowerCase().includes(search.toLowerCase()) || 
-    t.userId.toLowerCase().includes(search.toLowerCase())
+    (t.userName || '').toLowerCase().includes(search.toLowerCase()) || 
+    (t.userId || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -139,7 +139,7 @@ export default function AdminChat() {
               filteredThreads.map(thread => {
                 const isOnline = adminOnlineUsers.includes(thread.userId);
                 const isTyping = adminTypingStates[thread.userId];
-                const lastMsg = thread.messages[thread.messages.length - 1];
+                const lastMsg = thread.messages?.[thread.messages.length - 1];
 
                 return (
                   <button

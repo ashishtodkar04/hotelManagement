@@ -494,6 +494,30 @@ router.post('/update-status', requireAdmin, validate(schemas.updateBookingStatus
             await db.execute('UPDATE bookings SET status = ? WHERE id = ?', [status, bookingId]);
         }
 
+        if (status === 'cancelled') {
+            const [bRow] = await db.execute('SELECT user_id FROM bookings WHERE id = ?', [bookingId]);
+            if (bRow[0] && bRow[0].user_id && bRow[0].user_id !== 0) {
+                const userId = bRow[0].user_id;
+                const [countRes] = await db.execute(`
+                    SELECT (
+                        SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'cancelled'
+                    ) + (
+                        SELECT COUNT(*) FROM booking_history WHERE user_id = ? AND status = 'cancelled'
+                    ) AS cancel_count
+                `, [userId, userId]);
+
+                const cancelCount = countRes[0]?.cancel_count || 0;
+                if (cancelCount >= 3) {
+                    await db.execute('UPDATE users SET is_banned = 1 WHERE id = ?', [userId]);
+                    await db.execute(
+                        "UPDATE bookings SET status = 'cancelled' WHERE user_id = ? AND id != ? AND status NOT IN ('completed', 'cancelled')",
+                        [userId, bookingId]
+                    );
+                    console.log(`[AUTO-BAN] User ${userId} banned due to ${cancelCount} cancellations.`);
+                }
+            }
+        }
+
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -980,7 +1004,7 @@ router.get('/search-customer', requireAdmin, async (req, res) => {
 
         // 1. Search for Users
         const [users] = await db.execute(`
-            SELECT id, name, username, email, phone, created_at 
+            SELECT id, name, username, email, phone, is_banned, created_at 
             FROM users 
             WHERE id = ? OR email LIKE ? OR phone LIKE ? OR name LIKE ? OR username LIKE ?
         `, [query, `%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]);
@@ -1016,6 +1040,29 @@ router.get('/search-customer', requireAdmin, async (req, res) => {
     } catch (err) {
         console.error('Admin Search Error:', err);
         res.status(500).json({ success: false, error: 'Search sequence interrupted.' });
+    }
+});
+
+router.post('/users/:id/toggle-ban', requireAdmin, async (req, res) => {
+    try {
+        const userId = Number(req.params.id);
+        const [user] = await db.execute('SELECT is_banned FROM users WHERE id = ?', [userId]);
+        if (!user[0]) return res.status(404).json({ success: false, error: 'User not found' });
+
+        const nextBanStatus = user[0].is_banned ? 0 : 1;
+        await db.execute('UPDATE users SET is_banned = ? WHERE id = ?', [nextBanStatus, userId]);
+
+        if (nextBanStatus === 1) {
+            // Cancel all active bookings if user is banned
+            await db.execute(
+                "UPDATE bookings SET status = 'cancelled' WHERE user_id = ? AND status NOT IN ('completed', 'cancelled')",
+                [userId]
+            );
+        }
+
+        res.json({ success: true, is_banned: nextBanStatus });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
