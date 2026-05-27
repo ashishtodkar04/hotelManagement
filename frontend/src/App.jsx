@@ -4,6 +4,7 @@ import useStore from './store/useStore';
 import Navbar from './components/Navbar';
 import { useHotel } from './hooks/useHotel';
 import { useTheme } from './context/ThemeContext';
+import SpaceBackground from './components/SpaceBackground';
 
 // Pages
 import Home from './pages/Home';
@@ -59,19 +60,8 @@ function AppContent() {
     <>
       <Navbar />
 
-      {/* ── GLOBAL SPACE BACKGROUND ── */}
-      <div className="ambient-bg">
-        {/* Nebula colour washes */}
-        <div className="orb orb-1" />
-        <div className="orb orb-2" />
-        <div className="orb orb-3" />
-
-        {/* Moon craters — only visible in dark mode via CSS opacity */}
-        <div className="moon-crater" style={{ width:'12%', height:'12%', top:'calc(50% - 9vmin)', left:'calc(50% - 2vmin)' }} />
-        <div className="moon-crater" style={{ width:'7%',  height:'7%',  top:'calc(50% + 4vmin)', left:'calc(50% + 6vmin)' }} />
-        <div className="moon-crater" style={{ width:'5%',  height:'5%',  top:'calc(50% - 2vmin)', left:'calc(50% + 10vmin)' }} />
-        <div className="moon-crater" style={{ width:'4%',  height:'4%',  top:'calc(50% + 10vmin)',left:'calc(50% - 8vmin)' }} />
-      </div>
+      {/* ── IMMERSIVE SPACE SCENE ── */}
+      <SpaceBackground />
 
       {/* ── PAGE CONTENT — 3-D scene layer ── */}
       <div className="pt-20 min-h-screen relative" style={{ zIndex: 10 }}>

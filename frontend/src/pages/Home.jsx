@@ -18,65 +18,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen text-[var(--theme-text)] transition-colors duration-700 overflow-x-hidden" style={{ background: isDark ? '#030014' : '#dbeafe' }}>
-
-      {/* ── SPACE BACKGROUND ── */}
-      <div className="ambient-bg">
-        {/* Animated starfield (only visible in dark mode) */}
-        {isDark && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            backgroundImage: `radial-gradient(1px 1px at 15% 25%, rgba(255,255,255,0.9) 100%, transparent),
-              radial-gradient(1.5px 1.5px at 35% 15%, rgba(255,255,255,0.7) 100%, transparent),
-              radial-gradient(1px 1px at 55% 70%, rgba(255,255,255,0.8) 100%, transparent),
-              radial-gradient(2px 2px at 75% 45%, rgba(255,255,255,0.6) 100%, transparent),
-              radial-gradient(1px 1px at 90% 80%, rgba(255,255,255,0.9) 100%, transparent),
-              radial-gradient(1.5px 1.5px at 8% 60%, rgba(255,255,255,0.7) 100%, transparent),
-              radial-gradient(1px 1px at 45% 90%, rgba(255,255,255,0.5) 100%, transparent),
-              radial-gradient(2px 2px at 62% 30%, rgba(255,255,255,0.8) 100%, transparent),
-              radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.9) 100%, transparent),
-              radial-gradient(1.5px 1.5px at 22% 82%, rgba(255,255,255,0.6) 100%, transparent)`,
-            backgroundSize: '300px 300px',
-            animation: 'stars-move 120s linear infinite',
-          }} />
-        )}
-
-        {/* Nebula Orbs */}
-        <div className="orb orb-1" />
-        <div className="orb orb-2" />
-        <div className="orb orb-3" />
-
-        {/* Sun (light) / Moon (dark) */}
-        {isDark ? (
-          /* MOON */
-          <div style={{
-            position: 'absolute', top: '5vw', right: '5vw',
-            width: '22vw', height: '22vw', borderRadius: '50%',
-            background: 'radial-gradient(circle at 30% 30%, #ffffff 0%, #cbd5e1 30%, #64748b 70%, transparent 90%)',
-            boxShadow: 'inset -30px -30px 60px rgba(0,0,0,0.6), inset 15px 15px 40px rgba(255,255,255,0.9), 0 0 80px 20px rgba(148,163,184,0.25)',
-            filter: 'blur(1px)',
-            animation: 'float 30s infinite alternate ease-in-out',
-            zIndex: 0,
-          }}>
-            {/* Moon craters */}
-            <div style={{ position:'absolute', top:'25%', left:'20%', width:'15%', height:'15%', borderRadius:'50%', background:'rgba(0,0,0,0.2)', boxShadow:'inset 2px 2px 4px rgba(0,0,0,0.3)' }} />
-            <div style={{ position:'absolute', top:'50%', left:'55%', width:'10%', height:'10%', borderRadius:'50%', background:'rgba(0,0,0,0.15)', boxShadow:'inset 2px 2px 4px rgba(0,0,0,0.3)' }} />
-            <div style={{ position:'absolute', top:'65%', left:'30%', width:'8%', height:'8%', borderRadius:'50%', background:'rgba(0,0,0,0.18)', boxShadow:'inset 1px 1px 3px rgba(0,0,0,0.3)' }} />
-          </div>
-        ) : (
-          /* SUN */
-          <div style={{
-            position: 'absolute', top: '-15vw', right: '-10vw',
-            width: '55vw', height: '55vw', borderRadius: '50%',
-            background: 'radial-gradient(circle at center, #ffffff 0%, #fef9c3 10%, #fde047 25%, #f59e0b 50%, transparent 70%)',
-            boxShadow: '0 0 150px 80px rgba(251,191,36,0.3), 0 0 300px 150px rgba(253,224,71,0.15)',
-            filter: 'blur(8px)',
-            animation: 'float 40s infinite alternate ease-in-out',
-            zIndex: 0,
-            opacity: 0.85,
-          }} />
-        )}
-      </div>
+    <div className="min-h-screen text-[var(--theme-text)] transition-colors duration-700 overflow-x-hidden">
 
       {/* ── HERO ── */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ zIndex: 1 }}>
@@ -127,13 +69,13 @@ export default function Home() {
               { label: 'Happy Guests', value: '50K+', planet: 'planet-gas' },
               { label: 'Awards Won', value: '18', planet: '' },
             ].map((s, i) => (
-              <div key={i} className={`planet-card ${s.planet} p-10 flex flex-col items-center justify-center group`}
-                style={{ minHeight: '180px', width: '100%', aspectRatio: 'auto',
+              <div key={i} className={`planet-card ${s.planet} flex flex-col items-center justify-center group mx-auto`}
+                style={{ width: '160px', height: '160px',
                   background: s.planet ? undefined :
                     'radial-gradient(circle at 35% 35%, #e879f9 0%, #8b5cf6 50%, #4c1d95 90%)',
                 }}>
-                <div className="text-4xl md:text-5xl font-black mb-2 group-hover:scale-110 transition-transform text-white drop-shadow-2xl">{s.value}</div>
-                <div className="text-[9px] text-white/80 font-black uppercase tracking-[0.3em] text-center drop-shadow">{s.label}</div>
+                <div className="text-3xl md:text-4xl font-black mb-1 group-hover:scale-110 transition-transform text-white drop-shadow-2xl">{s.value}</div>
+                <div className="text-[8px] text-white/80 font-black uppercase tracking-[0.2em] text-center drop-shadow px-4">{s.label}</div>
               </div>
             ))}
           </div>
@@ -267,7 +209,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
 
           {/* Planet navigation links */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20">
+          <div className="flex flex-wrap justify-center gap-10 mb-20">
             {[
               { to: '/menu', label: t('menu'), planet: 'planet-earth', desc: 'See our dishes' },
               { to: '/booking', label: t('booking'), planet: 'planet-mars', desc: 'Book a table' },
@@ -275,12 +217,12 @@ export default function Home() {
               { to: '/admin', label: t('admin'), planet: '', desc: 'Staff area', color: 'radial-gradient(circle at 35% 35%, #e879f9 0%, #8b5cf6 50%, #4c1d95 90%)' },
             ].map((link, i) => (
               <Link key={i} to={link.to}
-                className={`planet-card ${link.planet} group flex flex-col items-center justify-center p-8 text-center`}
-                style={{ minHeight: '160px', aspectRatio: 'auto', textDecoration: 'none',
+                className={`planet-card ${link.planet} group flex flex-col items-center justify-center text-center`}
+                style={{ width: '140px', height: '140px', textDecoration: 'none',
                   background: link.planet ? undefined : link.color,
                 }}>
-                <div className="text-sm font-black uppercase tracking-[0.3em] text-white mb-2 group-hover:scale-110 transition-transform drop-shadow">{link.label}</div>
-                <div className="text-[10px] text-white/70 font-bold">{link.desc}</div>
+                <div className="text-xs font-black uppercase tracking-[0.2em] text-white mb-1 group-hover:scale-110 transition-transform drop-shadow">{link.label}</div>
+                <div className="text-[9px] text-white/70 font-bold">{link.desc}</div>
               </Link>
             ))}
           </div>
