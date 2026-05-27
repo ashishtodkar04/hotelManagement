@@ -4,142 +4,232 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════ */
 @layer base {
   :root {
-    --primary: #3b82f6;
-    --primary-hover: #2563eb;
-    
-    /* Space Theme - Light Mode (Bright Nebula) */
-    --theme-bg: #e0e7ff;
-    --theme-text: #0f172a;
-    --theme-text-muted: #475569;
-    --theme-panel: rgba(255, 255, 255, 0.65);
-    --theme-border: rgba(59, 130, 246, 0.2);
-    --theme-input: rgba(255, 255, 255, 0.9);
-    --theme-shadow: 0 20px 40px rgba(59, 130, 246, 0.15);
-    --theme-accent: rgba(59, 130, 246, 0.1);
-    
-    --btn-primary-bg: #1e3a8a;
-    --btn-primary-text: #ffffff;
-    --btn-secondary-bg: rgba(255, 255, 255, 0.5);
-    --btn-secondary-text: #1e3a8a;
-    --btn-secondary-border: #3b82f6;
+    /* Light = daytime sky — sun illuminates everything */
+    --theme-bg:          transparent;
+    --space-bg:          radial-gradient(ellipse at 50% 50%, #bfdbfe 0%, #dbeafe 40%, #eff6ff 100%);
+    --theme-text:        #0f172a;
+    --theme-text-muted:  #475569;
+    --theme-panel:       rgba(255, 255, 255, 0.55);
+    --theme-border:      rgba(59, 130, 246, 0.25);
+    --theme-input:       rgba(255, 255, 255, 0.85);
+    --theme-shadow:      0 8px 32px rgba(59,130,246,0.18), 0 2px 8px rgba(0,0,0,0.06);
+    --theme-accent:      rgba(59, 130, 246, 0.10);
+    /* sun glow tints panels */
+    --glow-color:        rgba(251,191,36,0.12);
+    --celestial-tint:    rgba(255,236,153,0.08);
+
+    --btn-primary-bg:    #1e3a8a;
+    --btn-primary-text:  #ffffff;
+    --btn-secondary-bg:  rgba(255,255,255,0.50);
+    --btn-secondary-text:#1e3a8a;
+    --btn-secondary-border:#3b82f6;
   }
 
   .dark {
-    /* Space Theme - Dark Mode (Deep Space) */
-    --theme-bg: #030014;
-    --theme-text: #f8fafc;
-    --theme-text-muted: #94a3b8;
-    --theme-panel: rgba(10, 10, 30, 0.6);
-    --theme-border: rgba(139, 92, 246, 0.2);
-    --theme-input: rgba(3, 0, 20, 0.8);
-    --theme-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), 0 0 20px rgba(139, 92, 246, 0.1);
-    --theme-accent: rgba(139, 92, 246, 0.15);
-    
-    --btn-primary-bg: #8b5cf6;
-    --btn-primary-text: #ffffff;
-    --btn-secondary-bg: rgba(139, 92, 246, 0.1);
-    --btn-secondary-text: #c4b5fd;
-    --btn-secondary-border: rgba(139, 92, 246, 0.5);
+    /* Dark = deep space — moon bathes everything in silver */
+    --theme-bg:          transparent;
+    --space-bg:          radial-gradient(ellipse at 50% 50%, #020010 0%, #05021a 45%, #0a0a28 100%);
+    --theme-text:        #f0f4ff;
+    --theme-text-muted:  #94a3b8;
+    --theme-panel:       rgba(8, 8, 28, 0.72);
+    --theme-border:      rgba(148,163,184,0.20);
+    --theme-input:       rgba(4, 2, 18, 0.85);
+    --theme-shadow:      0 8px 40px rgba(0,0,0,0.80), 0 0 24px rgba(148,163,184,0.06);
+    --theme-accent:      rgba(148,163,184,0.10);
+    /* moonlight tints panels */
+    --glow-color:        rgba(148,163,184,0.08);
+    --celestial-tint:    rgba(186,214,255,0.04);
+
+    --btn-primary-bg:    #334155;
+    --btn-primary-text:  #e2e8f0;
+    --btn-secondary-bg:  rgba(148,163,184,0.10);
+    --btn-secondary-text:#cbd5e1;
+    --btn-secondary-border:rgba(148,163,184,0.30);
   }
 
+  /* ── Reset ── */
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; overflow-x: hidden; }
 
-  html { 
-    scroll-behavior: smooth; 
-    overflow-x: hidden;
-  }
-
+  /* ── Base Body — space backdrop ── */
   body {
-    background-color: var(--theme-bg);
+    background: var(--space-bg);
+    background-attachment: fixed;
     color: var(--theme-text);
-    @apply font-sans transition-colors duration-500;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
-    perspective: 1500px;
+    @apply font-sans transition-colors duration-700;
+    /* 3-D scene root */
+    perspective: 2000px;
+    perspective-origin: 50% 30%;
   }
+  .dark body { background: var(--space-bg); }
 
-  /* Space Starfield & Nebula Background */
+  /* ═══════════════════════════════════════════
+     SPACE BACKGROUND — fixed behind ALL pages
+  ═══════════════════════════════════════════ */
   .ambient-bg {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    z-index: -1;
+    inset: 0;
+    z-index: -10;
     overflow: hidden;
     pointer-events: none;
-    background-image: 
-      radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.8) 100%, transparent),
-      radial-gradient(2px 2px at 30% 40%, rgba(255,255,255,0.6) 100%, transparent),
-      radial-gradient(1px 1px at 50% 60%, rgba(255,255,255,0.9) 100%, transparent),
-      radial-gradient(1.5px 1.5px at 70% 80%, rgba(255,255,255,0.5) 100%, transparent),
-      radial-gradient(2px 2px at 90% 10%, rgba(255,255,255,0.7) 100%, transparent);
-    background-size: 250px 250px;
-    animation: stars-move 120s linear infinite;
-    opacity: 0.1;
-    transition: opacity 2s ease;
   }
-  
-  .dark .ambient-bg {
-    opacity: 0.8;
+
+  /* ── Layer 1: animated starfield (dark only) ── */
+  .ambient-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px   1px   at  4%  9%,  #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 14% 22%, rgba(255,255,255,.90) 100%, transparent),
+      radial-gradient(1px   1px   at 28% 51%, #fff 100%, transparent),
+      radial-gradient(2px   2px   at 43%  7%, rgba(255,255,255,.80) 100%, transparent),
+      radial-gradient(1px   1px   at 59% 70%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 71% 38%, rgba(255,255,255,.90) 100%, transparent),
+      radial-gradient(1px   1px   at 85% 18%, #fff 100%, transparent),
+      radial-gradient(2px   2px   at 92% 80%, rgba(255,255,255,.70) 100%, transparent),
+      radial-gradient(1px   1px   at  9% 88%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 52% 93%, rgba(255,255,255,.80) 100%, transparent),
+      radial-gradient(1px   1px   at 21% 43%, #fff 100%, transparent),
+      radial-gradient(1px   1px   at 76% 58%, rgba(255,255,255,.90) 100%, transparent),
+      radial-gradient(2px   2px   at 38% 31%, rgba(255,255,255,.60) 100%, transparent),
+      radial-gradient(1px   1px   at 65% 13%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 82% 46%, rgba(255,255,255,.70) 100%, transparent),
+      radial-gradient(1px   1px   at 11% 66%, #fff 100%, transparent),
+      radial-gradient(1px   1px   at 49% 48%, rgba(255,255,255,.50) 100%, transparent),
+      radial-gradient(2px   2px   at 95%  4%, rgba(255,255,255,.80) 100%, transparent),
+      radial-gradient(1px   1px   at  2% 36%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 68% 85%, rgba(255,255,255,.90) 100%, transparent);
+    background-size:
+      310px 310px, 420px 420px, 360px 360px, 510px 510px, 290px 290px,
+      330px 330px, 460px 460px, 380px 380px, 270px 270px, 415px 415px,
+      300px 300px, 490px 490px, 350px 350px, 400px 400px, 320px 320px,
+      430px 430px, 370px 370px, 440px 440px, 280px 280px, 390px 390px;
+    animation: stars-drift 200s linear infinite;
+    opacity: 0;
+    transition: opacity 2.5s ease;
   }
-  
-  /* Celestial Body (Sun/Moon) */
+  .dark .ambient-bg::before { opacity: 1; }
+
+  /* ── Layer 2: SUN (light) / MOON (dark) — dead centre ── */
   .ambient-bg::after {
     content: '';
     position: absolute;
-    top: -20vw;
-    right: -10vw;
-    width: 60vw;
-    height: 60vw;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
     border-radius: 50%;
-    transition: all 2s cubic-bezier(0.16, 1, 0.3, 1);
-    
-    /* Sun (Light Mode) */
-    background: radial-gradient(circle at center, #ffffff 0%, #fef08a 15%, #f59e0b 40%, transparent 70%);
-    box-shadow: 0 0 200px 100px rgba(245, 158, 11, 0.4), 0 0 300px 150px rgba(253, 224, 71, 0.2);
-    filter: blur(15px);
+    transition: all 2.5s cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* ──── SUN ──── */
+    width:  52vmin;
+    height: 52vmin;
+    background: radial-gradient(circle at center,
+      #fffde7  0%,
+      #fff176  7%,
+      #ffee58 16%,
+      #fdd835 30%,
+      #f9a825 48%,
+      rgba(251,140, 0,.38) 66%,
+      rgba(230, 81, 0,.10) 82%,
+      transparent 100%
+    );
+    box-shadow:
+       0  0  55px  28px rgba(255,235, 59,.60),
+       0  0 110px  55px rgba(255,193,  7,.38),
+       0  0 200px 100px rgba(255,152,  0,.20),
+       0  0 360px 170px rgba(255,111,  0,.10);
+    filter: blur(5px);
+    animation: sun-pulse 9s ease-in-out infinite alternate;
   }
 
+  /* ──── MOON ──── */
   .dark .ambient-bg::after {
-    /* Moon (Dark Mode) */
-    background: radial-gradient(circle at 30% 30%, #ffffff 0%, #cbd5e1 30%, #64748b 70%, transparent 90%);
-    box-shadow: 
-      inset -30px -30px 60px rgba(0,0,0,0.6), 
-      inset 15px 15px 40px rgba(255,255,255,0.9),
-      0 0 120px 30px rgba(148, 163, 184, 0.2);
-    filter: blur(2px);
-    width: 25vw;
-    height: 25vw;
-    top: 5vw;
-    right: 5vw;
+    width:  34vmin;
+    height: 34vmin;
+    background: radial-gradient(circle at 33% 30%,
+      #ffffff  0%,
+      #e8edf5 18%,
+      #94a3b8 52%,
+      #475569 78%,
+      #1e293b 100%
+    );
+    box-shadow:
+      inset -20px -20px 45px rgba(0,  0,  0,.72),
+      inset  14px  14px 38px rgba(255,255,255,.82),
+       0  0  55px  18px rgba(148,163,184,.28),
+       0  0 130px  55px rgba(100,116,139,.12);
+    filter: blur(0px);
+    animation: moon-float 14s ease-in-out infinite alternate;
   }
 
-  @keyframes stars-move {
-    0% { background-position: 0 0; }
-    100% { background-position: -1000px 1000px; }
-  }
-
+  /* ── Layer 3: nebula colour washes ── */
   .orb {
     position: absolute;
     border-radius: 50%;
-    filter: blur(120px);
-    opacity: 0.4;
-    animation: float 25s infinite alternate ease-in-out;
+    filter: blur(140px);
+    opacity: 0.22;
+    animation: orb-drift 35s infinite alternate ease-in-out;
   }
-  
-  .dark .orb { opacity: 0.3; }
+  .dark .orb { opacity: 0.14; }
 
-  @keyframes float {
-    0% { transform: translate(0, 0) scale(1) rotate(0deg); }
-    33% { transform: translate(100px, -150px) scale(1.2) rotate(10deg); }
-    66% { transform: translate(-80px, 80px) scale(0.8) rotate(-10deg); }
-    100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  /* light-mode orbs echo the sun palette */
+  .orb-1 { width:58vw; height:58vw; background:#93c5fd; top:-12vw;  left:-10vw; }
+  .orb-2 { width:52vw; height:52vw; background:#c4b5fd; bottom:-12vw;right:-10vw; animation-delay:-12s; }
+  .orb-3 { width:38vw; height:38vw; background:#fbbf24; top:38%;    left:38%;   animation-delay:-24s; }
+
+  /* dark-mode: override to moon palette */
+  .dark .orb-1 { background:#1e3a5f; }
+  .dark .orb-2 { background:#312e81; }
+  .dark .orb-3 { background:#1e293b; }
+
+  /* ── Moon craters (rendered as JS divs in ambient-bg) ── */
+  .moon-crater {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%,
+      rgba(148,163,184,.10) 0%,
+      rgba(30, 41, 59,.45)  60%,
+      transparent 100%
+    );
+    box-shadow: inset 2px 2px 6px rgba(0,0,0,.55), inset -1px -1px 3px rgba(255,255,255,.15);
+    opacity: 0;
+    transition: opacity 2s ease;
+  }
+  .dark .moon-crater { opacity: 1; }
+
+  /* ════ KEYFRAMES ════ */
+  @keyframes sun-pulse {
+    0%   { box-shadow: 0 0 55px 28px rgba(255,235,59,.60), 0 0 110px 55px rgba(255,193,7,.38), 0 0 200px 100px rgba(255,152,0,.20), 0 0 360px 170px rgba(255,111,0,.10); }
+    100% { box-shadow: 0 0 80px 42px rgba(255,235,59,.80), 0 0 160px 80px rgba(255,193,7,.50), 0 0 280px 140px rgba(255,152,0,.28), 0 0 480px 230px rgba(255,111,0,.16); }
+  }
+  @keyframes moon-float {
+    0%   { transform: translate(-50%,-50%) translateY(   0px) scale(1.00); }
+    100% { transform: translate(-50%,-50%) translateY(-20px)  scale(1.02); }
+  }
+  @keyframes orb-drift {
+    0%   { transform: translate(  0,   0) scale(1.00); }
+    50%  { transform: translate( 50px,-70px) scale(1.12); }
+    100% { transform: translate(-50px, 60px) scale(0.92); }
+  }
+  @keyframes stars-drift {
+    0%   { background-position:
+             0 0,  0 0,  0 0,  0 0,  0 0,  0 0,  0 0,  0 0,  0 0,  0 0,
+             0 0,  0 0,  0 0,  0 0,  0 0,  0 0,  0 0,  0 0,  0 0,  0 0; }
+    100% { background-position:
+             -310px 310px,  420px -210px, -360px 180px,  510px -400px, -290px 290px,
+              330px -330px, -460px 230px,  380px -380px, -270px 270px,  415px -110px,
+             -300px 300px,  490px -490px, -350px 350px,  400px -160px, -320px 320px,
+              430px -430px, -370px 185px,  440px -440px, -280px 280px,  390px -390px; }
   }
 
-  .orb-1 { width: 60vw; height: 60vw; background: #3b82f6; top: -15vw; right: -15vw; }
-  .orb-2 { width: 50vw; height: 50vw; background: #8b5cf6; bottom: -10vw; left: -15vw; animation-delay: -7s; }
-  .orb-3 { width: 40vw; height: 40vw; background: #ec4899; top: 35%; left: 25%; animation-delay: -15s; }
-
+  /* ── Base resets ── */
   a { @apply no-underline; }
   button { @apply cursor-pointer font-sans border-none; }
 
@@ -147,193 +237,231 @@
     background-color: var(--theme-input);
     border: 1px solid var(--theme-border);
     color: var(--theme-text);
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.06);
     @apply rounded-2xl px-6 py-4 font-sans outline-none transition-all duration-300;
   }
   input:focus, select:focus, textarea:focus {
-    @apply ring-4 ring-blue-500/20 border-blue-500/60;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2), inset 0 2px 4px rgba(0,0,0,0.05);
+    @apply ring-4 ring-blue-400/20 border-blue-400/50;
+    box-shadow: 0 0 24px rgba(96,165,250,.18), inset 0 2px 6px rgba(0,0,0,.06);
+  }
+  .dark input:focus, .dark select:focus, .dark textarea:focus {
+    @apply ring-4 ring-slate-400/20 border-slate-400/40;
+    box-shadow: 0 0 24px rgba(148,163,184,.12), inset 0 2px 6px rgba(0,0,0,.20);
   }
 }
 
+/* ═══════════════════════════════════════════════
+   COMPONENT LIBRARY
+═══════════════════════════════════════════════ */
 @layer components {
-  /* Dynamic 3D Space Glass Architecture */
+
+  /* ── GLASS (legacy, kept for compatibility) ── */
   .glass {
-    background-color: var(--theme-panel);
+    background: var(--theme-panel);
     border: 1px solid var(--theme-border);
-    box-shadow: var(--theme-shadow);
+    box-shadow: var(--theme-shadow), inset 0 1px 0 rgba(255,255,255,.20);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    @apply rounded-[2.5rem] transition-all duration-700;
     transform-style: preserve-3d;
-    @apply backdrop-blur-3xl rounded-[3rem] transition-all duration-700;
   }
-  
   .glass:hover {
-    transform: translateY(-10px) translateZ(30px) rotateX(2deg);
-    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.3), 0 0 40px rgba(139, 92, 246, 0.2);
-    border-color: rgba(139, 92, 246, 0.4);
+    transform: translateY(-8px) translateZ(28px) rotateX(1.5deg);
+    box-shadow: 0 32px 64px rgba(0,0,0,.22), 0 0 32px var(--glow-color), inset 0 1px 0 rgba(255,255,255,.28);
+    border-color: rgba(148,163,184,.35);
   }
 
-  /* Cloud UI Component */
+  /* ══════════════════════════════════
+     CLOUD CARDS — float above the sky
+  ══════════════════════════════════ */
   .cloud-card {
-    background-color: var(--theme-panel);
-    backdrop-filter: blur(40px);
+    /* sunlit cloud in day, dark nebula cloud at night */
+    background: var(--theme-panel);
+    backdrop-filter: blur(36px) saturate(180%);
+    -webkit-backdrop-filter: blur(36px) saturate(180%);
     border: 1px solid var(--theme-border);
-    /* Organic cloud-like border radius */
-    border-radius: 50px 70px 50px 70px / 60px 50px 70px 60px;
-    box-shadow: 
-      0 20px 40px rgba(0,0,0,0.05),
-      inset 0 10px 30px rgba(255,255,255,0.3),
-      inset 0 -10px 30px rgba(0,0,0,0.05);
-    transition: all 0.7s ease;
+    /* organic cloud silhouette */
+    border-radius: 58px 72px 54px 68px / 62px 52px 72px 58px;
+    box-shadow:
+       0  16px 40px  rgba(0,0,0,.08),
+       0   4px 12px  rgba(0,0,0,.04),
+       inset  0  10px 30px rgba(255,255,255,.32),
+       inset  0 -10px 30px rgba(0,0,0,.04),
+       0  0  0  1px var(--celestial-tint);
+    transition: all 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
     transform-style: preserve-3d;
+    will-change: transform, box-shadow;
   }
-  
   .dark .cloud-card {
-    background-color: rgba(15, 23, 42, 0.8);
-    box-shadow: 
-      0 20px 40px rgba(0,0,0,0.5),
-      inset 0 10px 30px rgba(255,255,255,0.05),
-      inset 0 -10px 30px rgba(0,0,0,0.3);
+    background: rgba(10, 12, 32, 0.75);
+    box-shadow:
+       0  16px 40px  rgba(0,0,0,.60),
+       0   4px 12px  rgba(0,0,0,.40),
+       inset  0  10px 28px rgba(255,255,255,.04),
+       inset  0 -10px 28px rgba(0,0,0,.35),
+       0  0  0  1px rgba(148,163,184,.08);
   }
-
   .cloud-card:hover {
-    transform: translateY(-10px) scale(1.02) translateZ(20px);
-    border-radius: 60px 50px 70px 50px / 50px 70px 60px 70px;
-    box-shadow: 
-      0 30px 60px rgba(0,0,0,0.1),
-      inset 0 10px 30px rgba(255,255,255,0.4),
-      inset 0 -10px 30px rgba(0,0,0,0.05);
+    transform: translateY(-12px) translateZ(30px) rotateX(2deg) scale(1.015);
+    border-radius: 64px 54px 72px 56px / 54px 70px 58px 72px;
+    box-shadow:
+       0  32px 64px  rgba(0,0,0,.12),
+       0   8px 24px  rgba(0,0,0,.06),
+       inset  0  12px 36px rgba(255,255,255,.45),
+       inset  0 -12px 36px rgba(0,0,0,.04),
+       0  0  40px   var(--glow-color);
   }
-
   .dark .cloud-card:hover {
-    box-shadow: 
-      0 30px 60px rgba(0,0,0,0.6),
-      inset 0 10px 30px rgba(255,255,255,0.1),
-      inset 0 -10px 30px rgba(0,0,0,0.4);
+    box-shadow:
+       0  32px 64px  rgba(0,0,0,.75),
+       0   8px 24px  rgba(0,0,0,.55),
+       inset  0  12px 36px rgba(255,255,255,.07),
+       inset  0 -12px 36px rgba(0,0,0,.45),
+       0  0  50px   rgba(148,163,184,.12);
   }
 
-  /* Planetary Information Elements */
+  /* ══════════════════════════════════
+     PLANET CARDS — spherical 3-D info
+  ══════════════════════════════════ */
   .planet-card {
     position: relative;
     border-radius: 50%;
-    aspect-ratio: 1/1;
+    aspect-ratio: 1 / 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    color: white;
+    color: #fff;
     text-align: center;
-    box-shadow: 
-      inset -20px -20px 50px rgba(0,0,0,0.5),
-      inset 10px 10px 40px rgba(255,255,255,0.3),
-      0 20px 40px rgba(0,0,0,0.3);
-    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.8s ease;
+    box-shadow:
+      inset -22px -22px 55px rgba(0,0,0,.55),
+      inset  12px  12px 42px rgba(255,255,255,.28),
+       0   22px  44px rgba(0,0,0,.32),
+       0    4px  12px rgba(0,0,0,.20);
+    transition: transform 0.9s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.9s ease;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  /* specular highlight */
+  .planet-card::before {
+    content: '';
+    position: absolute;
+    top: 10%; left: 14%;
+    width: 32%; height: 26%;
+    background: radial-gradient(ellipse at 40% 40%, rgba(255,255,255,.55) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .planet-card:hover {
+    transform: rotate(8deg) scale(1.08) translateZ(44px);
+    box-shadow:
+      inset -30px -30px 65px rgba(0,0,0,.65),
+      inset  16px  16px 52px rgba(255,255,255,.35),
+       0   36px  72px rgba(0,0,0,.45),
+       0    8px  24px rgba(0,0,0,.28);
+  }
+  .planet-earth {
+    background: radial-gradient(circle at 38% 34%, #4ade80 0%, #22d3ee 25%, #3b82f6 52%, #1e40af 80%, #1e3a8a 100%);
+  }
+  .planet-mars {
+    background: radial-gradient(circle at 38% 34%, #fca5a5 0%, #f97316 30%, #ef4444 55%, #991b1b 82%, #7f1d1d 100%);
+  }
+  .planet-gas {
+    background: conic-gradient(from 60deg at 50% 50%,
+      #fde68a, #fbbf24, #f59e0b, #d97706, #fde68a,
+      #fed7aa, #fb923c, #ea580c, #fde68a);
+    /* bands effect */
+    mask-image: radial-gradient(circle, black 100%, transparent 100%);
+  }
+  .planet-violet {
+    background: radial-gradient(circle at 38% 34%, #e879f9 0%, #a855f7 40%, #7c3aed 72%, #4c1d95 100%);
+  }
+
+  /* ══════════════════════════════════
+     BUTTONS
+  ══════════════════════════════════ */
+  .btn-primary {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    box-shadow: 0 10px 22px rgba(0,0,0,.22), 0 0 16px rgba(59,130,246,.28), inset 0 1px 0 rgba(255,255,255,.18);
+    @apply font-black px-10 py-5 rounded-2xl transition-all duration-500 inline-flex items-center justify-center gap-3 uppercase tracking-[0.18em] text-[10px];
     transform-style: preserve-3d;
   }
-  
-  .planet-card:hover {
-    transform: rotate(10deg) scale(1.05) translateZ(40px);
-    box-shadow: 
-      inset -30px -30px 60px rgba(0,0,0,0.6),
-      inset 15px 15px 50px rgba(255,255,255,0.4),
-      0 30px 60px rgba(0,0,0,0.4);
-  }
-  
-  .planet-earth {
-    background: radial-gradient(circle at 35% 35%, #4ade80 0%, #3b82f6 50%, #1e3a8a 90%);
-  }
-  
-  .planet-mars {
-    background: radial-gradient(circle at 35% 35%, #fca5a5 0%, #ef4444 50%, #7f1d1d 90%);
-  }
-  
-  .planet-gas {
-    background: linear-gradient(135deg, #fde047 0%, #fb923c 30%, #e11d48 70%, #4c0519 100%);
-  }
-
-  /* Universal Theme-Aware Buttons */
-  .btn-primary {
-    background-color: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2), 0 0 15px rgba(59,130,246,0.3);
-    @apply font-black px-10 py-5 rounded-2xl transition-all duration-500 inline-flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[10px];
-  }
   .btn-primary:hover {
-    @apply -translate-y-2 scale-105;
-    box-shadow: 0 15px 30px rgba(0,0,0,0.3), 0 0 30px rgba(139, 92, 246, 0.6);
-    filter: brightness(1.2);
+    transform: translateY(-4px) translateZ(16px) scale(1.03);
+    box-shadow: 0 18px 36px rgba(0,0,0,.30), 0 0 32px rgba(139,92,246,.55), inset 0 1px 0 rgba(255,255,255,.22);
+    filter: brightness(1.15);
   }
-  .btn-primary:active { @apply scale-95 translate-y-0; }
+  .btn-primary:active { transform: translateY(0) scale(0.97); }
 
   .btn-secondary {
-    background-color: var(--btn-secondary-bg);
+    background: var(--btn-secondary-bg);
     color: var(--btn-secondary-text);
     border: 1px solid var(--btn-secondary-border);
-    backdrop-filter: blur(10px);
-    @apply font-black px-10 py-5 rounded-2xl transition-all duration-500 inline-flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[10px] shadow-sm;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 16px rgba(0,0,0,.10), inset 0 1px 0 rgba(255,255,255,.20);
+    @apply font-black px-10 py-5 rounded-2xl transition-all duration-500 inline-flex items-center justify-center gap-3 uppercase tracking-[0.18em] text-[10px];
   }
   .btn-secondary:hover {
-    @apply border-blue-500 text-blue-500 -translate-y-2 scale-105;
-    background-color: rgba(59, 130, 246, 0.1);
-    box-shadow: 0 15px 30px -10px rgba(37,99,235,0.2), 0 0 20px rgba(59,130,246,0.2);
+    transform: translateY(-4px) translateZ(12px);
+    border-color: #60a5fa;
+    color: #2563eb;
+    background: rgba(59,130,246,.12);
+    box-shadow: 0 12px 28px rgba(37,99,235,.16), 0 0 20px rgba(59,130,246,.18);
+  }
+  .dark .btn-secondary:hover {
+    border-color: rgba(148,163,184,.50);
+    color: #cbd5e1;
+    background: rgba(148,163,184,.12);
+    box-shadow: 0 12px 28px rgba(0,0,0,.40), 0 0 20px rgba(148,163,184,.12);
   }
 
-  /* Sophisticated Status Badges */
-  .badge {
-    @apply inline-flex items-center px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border transition-all;
-  }
-  .badge-blue { @apply badge bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm; }
+  /* ── Badges ── */
+  .badge { @apply inline-flex items-center px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border transition-all; }
+  .badge-blue    { @apply badge bg-blue-500/10    text-blue-500    border-blue-500/20    shadow-sm; }
   .badge-emerald { @apply badge bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-sm; }
-  .badge-rose { @apply badge bg-rose-500/10 text-rose-500 border-rose-500/20 shadow-sm; }
-  .badge-amber { @apply badge bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-sm; }
+  .badge-rose    { @apply badge bg-rose-500/10    text-rose-500    border-rose-500/20    shadow-sm; }
+  .badge-amber   { @apply badge bg-amber-500/10   text-amber-500   border-amber-500/20   shadow-sm; }
 
-  /* Typography Design */
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500;
-  }
-  .dark .text-gradient {
-    @apply from-blue-400 via-purple-400 to-pink-400;
-  }
+  /* ── Typography ── */
+  .text-gradient { @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500; }
+  .dark .text-gradient { @apply from-blue-300 via-purple-300 to-pink-300; }
+  .font-serif { font-family: 'Playfair Display', serif; }
 
-  .font-serif {
-    font-family: 'Playfair Display', serif;
-  }
-
-  /* Fluid Custom Scrollbar */
-  .custom-scroll::-webkit-scrollbar {
-    width: 8px;
-  }
-  .custom-scroll::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.1);
-    border-radius: 10px;
-  }
-  .custom-scroll::-webkit-scrollbar-thumb {
-    background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
-    @apply rounded-full hover:brightness-125 transition-all;
-  }
+  /* ── Scrollbar ── */
+  .custom-scroll::-webkit-scrollbar       { width: 6px; }
+  .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,.08); border-radius: 10px; }
+  .custom-scroll::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, #60a5fa, #a78bfa); @apply rounded-full; }
 }
 
-/* Interaction States */
+/* ═══════════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════════ */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+  0%,100% { transform: translateX(0); }
+  25%      { transform: translateX(-5px); }
+  75%      { transform: translateX( 5px); }
 }
-.animate-shake { animation: shake 0.4s ease-in-out infinite; }
+.animate-shake { animation: shake 0.4s ease-in-out; }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(40px) scale(0.95) translateZ(-50px); }
-  to { opacity: 1; transform: translateY(0) scale(1) translateZ(0); }
+  from { opacity: 0; transform: translateY(36px) scale(0.96) translateZ(-40px); }
+  to   { opacity: 1; transform: translateY(0)    scale(1)    translateZ(0); }
 }
-.animate-fade-in { animation: fade-in 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in { animation: fade-in 1.1s cubic-bezier(0.16,1,0.3,1) forwards; }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(30px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
-.animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
 
-.skeleton {
-  @apply rounded-3xl animate-pulse;
-  background-color: var(--theme-border);
+@keyframes bounce-subtle {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
 }
+.animate-bounce-subtle { animation: bounce-subtle 2s ease-in-out infinite; }
+
+.skeleton { @apply rounded-3xl animate-pulse; background-color: var(--theme-border); }

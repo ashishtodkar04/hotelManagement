@@ -101,7 +101,7 @@ export default function Booking() {
               </div>
             </div>
 
-            <div className="glass p-10 min-h-[500px]">
+            <div className="cloud-card p-10 min-h-[500px]">
               {loading ? (
                 <div className="grid grid-cols-3 gap-6">
                   {[...Array(12)].map((_, i) => <div key={i} className="bg-[var(--theme-accent)] rounded-[1.5rem] h-28 animate-pulse border border-[var(--theme-border)]" />)}
@@ -151,7 +151,7 @@ export default function Booking() {
 
           {/* Form Selection (Right) */}
           <div className="lg:col-span-7 animate-fade-in" style={{ animationDelay: '0.8s' }}>
-            <div className="glass p-6 sm:p-12 md:p-20 shadow-2xl relative overflow-hidden group">
+            <div className="cloud-card p-6 sm:p-12 md:p-20 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
                 <Calendar size={120} />
               </div>

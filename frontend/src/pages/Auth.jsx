@@ -73,7 +73,7 @@ export default function Auth() {
       <div className="absolute top-[-15%] right-[-15%] w-[60%] h-[60%] bg-blue-600/5 blur-[150px] rounded-full animate-pulse"></div>
       <div className="absolute bottom-[-15%] left-[-15%] w-[60%] h-[60%] bg-indigo-600/5 blur-[150px] rounded-full"></div>
 
-      <div className="w-full max-w-[1400px] grid lg:grid-cols-2 bg-[var(--theme-panel)] rounded-[2rem] md:rounded-[4rem] border border-[var(--theme-border)] overflow-hidden shadow-2xl relative z-10 animate-fade-in backdrop-blur-3xl">
+      <div className="w-full max-w-[1400px] grid lg:grid-cols-2 cloud-card overflow-hidden shadow-2xl relative z-10 animate-fade-in">
         <div className="hidden lg:flex flex-col justify-between p-16 xl:p-24 bg-slate-900 text-white relative">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/30 via-transparent to-indigo-600/10 pointer-events-none"></div>
 

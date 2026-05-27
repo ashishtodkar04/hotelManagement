@@ -130,7 +130,7 @@ export default function OrderDishes() {
 
   if (success) return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-[var(--theme-bg)] transition-colors duration-500">
-      <div className="glass max-w-2xl w-full p-16 md:p-24 text-center shadow-2xl animate-fade-in relative overflow-hidden group">
+      <div className="cloud-card max-w-2xl w-full p-16 md:p-24 text-center shadow-2xl animate-fade-in relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
            <CheckCircle size={150} />
         </div>
@@ -214,7 +214,7 @@ export default function OrderDishes() {
                         key={cat} 
                         onClick={() => isAvailable && addToCart(dish)}
                         disabled={!isAvailable}
-                        className={`glass p-6 text-left group transition-all ${isAvailable ? 'hover:border-blue-600' : 'opacity-50 grayscale cursor-not-allowed'}`}
+                        className={`cloud-card p-6 text-left group transition-all ${isAvailable ? 'hover:border-blue-600' : 'opacity-50 grayscale cursor-not-allowed'}`}
                       >
                         <div className="flex justify-between items-center mb-2">
                           <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{cat}</div>
@@ -264,7 +264,7 @@ export default function OrderDishes() {
                 const inCart = cart.find(i => i.id === dish.id);
                 const isAvailable = dish.is_available !== 0;
                 return (
-                  <div key={dish.id} className={`glass p-8 flex items-center gap-6 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-700 ${!isAvailable ? 'opacity-50 grayscale' : ''}`}>
+                  <div key={dish.id} className={`cloud-card p-8 flex items-center gap-6 group hover:-translate-y-2 hover:shadow-2xl transition-all duration-700 ${!isAvailable ? 'opacity-50 grayscale' : ''}`}>
                     <div className="w-24 h-24 rounded-[1.5rem] overflow-hidden bg-[var(--theme-accent)] flex items-center justify-center shrink-0 relative border border-[var(--theme-border)]">
                       {dish.image
                         ? <img src={dish.image.startsWith('http') ? dish.image : `${getApiUrl()}${dish.image}`} alt={dish.name} className="w-full h-full object-cover transition-transform group-hover:scale-125 duration-[2s] ease-out" />
@@ -312,7 +312,7 @@ export default function OrderDishes() {
                 );
               })}
               {filtered.length === 0 && (
-                <div className="col-span-full py-40 glass text-center border-dashed border-2">
+                <div className="col-span-full py-40 cloud-card text-center border-dashed border-2">
                   <Utensils size={80} className="mx-auto mb-8 text-slate-200" />
                   <p className="text-3xl text-slate-300 font-black tracking-tighter uppercase">No culinary matches found</p>
                 </div>
@@ -347,7 +347,7 @@ export default function OrderDishes() {
 
   function CartContent() {
     return (
-      <div className="glass flex flex-col overflow-hidden shadow-2xl border-2 border-blue-600/5 h-fit">
+      <div className="cloud-card flex flex-col overflow-hidden shadow-2xl border-2 border-blue-600/5 h-fit">
         <div className="px-8 md:px-12 py-8 md:py-10 border-b border-[var(--theme-border)] bg-[var(--theme-accent)] flex items-center justify-between">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">

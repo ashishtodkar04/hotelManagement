@@ -13,7 +13,7 @@ const TABS = [
 
 function DishCard({ dish, tabEmoji }) {
   return (
-    <div className={`glass p-6 md:p-8 flex flex-col h-full group hover:-translate-y-3 hover:shadow-2xl transition-all duration-700 relative overflow-hidden ${!dish.is_available ? 'opacity-60 grayscale' : ''}`}>
+    <div className={`cloud-card p-6 md:p-8 flex flex-col h-full group hover:-translate-y-3 hover:shadow-2xl transition-all duration-700 relative overflow-hidden ${!dish.is_available ? 'opacity-60 grayscale' : ''}`}>
       {!dish.is_available && (
         <div className="absolute top-4 left-4 z-30 bg-slate-800 text-slate-300 text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-slate-600">
           OUT OF STOCK
@@ -222,11 +222,11 @@ export default function Menu() {
         {loading ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="glass h-[600px] animate-pulse" />
+              <div key={i} className="cloud-card h-[600px] animate-pulse" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="glass py-48 text-center border-dashed border-2 max-w-5xl mx-auto animate-fade-in">
+          <div className="cloud-card py-48 text-center border-dashed border-2 max-w-5xl mx-auto animate-fade-in">
             <div className="w-24 h-24 bg-[var(--theme-accent)] rounded-[2rem] flex items-center justify-center mx-auto mb-10">
                <Utensils size={48} className="text-slate-200" />
             </div>

@@ -168,7 +168,7 @@ export default function Payment() {
 
   if (step === 'submitted' || step === 'verified') return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-[var(--theme-bg)] transition-colors duration-500">
-      <div className="glass max-w-2xl w-full p-16 md:p-24 text-center shadow-2xl animate-fade-in relative overflow-hidden group">
+      <div className="cloud-card max-w-2xl w-full p-16 md:p-24 text-center shadow-2xl animate-fade-in relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
            {step === 'verified' ? <CheckCircle size={150} /> : <Clock size={150} />}
         </div>
@@ -215,7 +215,7 @@ export default function Payment() {
         <div className="grid lg:grid-cols-12 gap-16">
           {/* Reservation Details (Left) */}
           <div className="lg:col-span-4 space-y-10 animate-fade-in" style={{ animationDelay: '0.6s' }}>
-            <div className="glass p-12 relative overflow-hidden group">
+            <div className="cloud-card p-12 relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
                 <CreditCard size={120} />
               </div>
@@ -259,7 +259,7 @@ export default function Payment() {
 
           {/* Payment Terminal (Right) */}
           <div className="lg:col-span-8 animate-fade-in" style={{ animationDelay: '0.8s' }}>
-            <div className="glass p-12 md:p-20 shadow-2xl relative overflow-hidden">
+            <div className="cloud-card p-12 md:p-20 shadow-2xl relative overflow-hidden">
               <div className="flex flex-col xl:flex-row items-center gap-20">
                 <div className="text-center space-y-10">
                   <div className="bg-white p-8 rounded-[3rem] border border-slate-200 inline-block shadow-2xl group relative overflow-hidden">

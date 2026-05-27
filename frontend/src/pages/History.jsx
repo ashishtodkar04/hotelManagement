@@ -45,10 +45,10 @@ export default function History() {
 
         {loading ? (
           <div className="space-y-12">
-            {[...Array(3)].map((_, i) => <div key={i} className="glass h-80 animate-pulse" />)}
+            {[...Array(3)].map((_, i) => <div key={i} className="cloud-card h-80 animate-pulse" />)}
           </div>
         ) : bookings.length === 0 ? (
-          <div className="glass py-48 text-center border-dashed border-2 max-w-4xl mx-auto animate-fade-in">
+          <div className="cloud-card py-48 text-center border-dashed border-2 max-w-4xl mx-auto animate-fade-in">
             <Calendar size={100} className="mx-auto mb-10 text-slate-200" />
             <h3 className="text-4xl font-black text-[var(--theme-text)] mb-6 tracking-tighter uppercase">No archived sessions</h3>
             <p className="text-slate-400 text-xl mb-16 font-bold tracking-tight max-w-md mx-auto">Initialize your first experience to build your culinary legacy.</p>
@@ -59,7 +59,7 @@ export default function History() {
         ) : (
           <div className="space-y-12 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             {bookings.map(b => (
-              <div key={b.id} className="glass p-8 md:p-12 hover:-translate-y-2 hover:shadow-2xl transition-all duration-700 relative overflow-hidden group">
+              <div key={b.id} className="cloud-card p-8 md:p-12 hover:-translate-y-2 hover:shadow-2xl transition-all duration-700 relative overflow-hidden group">
                 <div className={`absolute top-0 left-0 w-1.5 md:w-2 h-full transition-colors duration-500 ${b.status === 'completed' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                 
                 <div className="flex flex-wrap items-center justify-between gap-6 md:gap-10 mb-10 md:mb-12">
