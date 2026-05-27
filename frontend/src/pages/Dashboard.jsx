@@ -4,6 +4,7 @@ import useStore from '../store/useStore';
 import api from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
 import { useHotel } from '../hooks/useHotel';
+import socket from '../services/socket';
 import {
   Clock, CheckCircle, Receipt, Calendar,
   Users, Plus, CreditCard, ShoppingBag, AlertCircle, History, Activity,
@@ -50,7 +51,7 @@ function BookingCard({ booking, onRefresh, t }) {
   };
 
   return (
-    <div className="glass group hover:-translate-y-2 hover:shadow-2xl transition-all duration-700 overflow-hidden relative">
+    <div className="cloud-card group overflow-hidden relative">
       <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors duration-500 ${
         booking.status === 'completed' ? 'bg-emerald-500' :
         booking.status === 'seated'    ? 'bg-indigo-500' :
@@ -245,18 +246,33 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-
     if (!user) return;
-    api.get('/dashboard').then(r => {
-      if (r.data.success) {
-        const bks = r.data.bookings.map(b => ({
-          ...b,
-          orders: (r.data.ordersByBooking || {})[b.id] || [],
-        }));
-        setBookings(bks.sort((a, b) => b.id - a.id));
-        setLoyaltyBadge(r.data.loyaltyBadge || false);
-      }
-    }).catch(console.error).finally(() => setLoading(false));
+
+    const fetchDashboardData = () => {
+      api.get('/dashboard').then(r => {
+        if (r.data.success) {
+          const bks = r.data.bookings.map(b => ({
+            ...b,
+            orders: (r.data.ordersByBooking || {})[b.id] || [],
+          }));
+          setBookings(bks.sort((a, b) => b.id - a.id));
+          setLoyaltyBadge(r.data.loyaltyBadge || false);
+        }
+      }).catch(console.error).finally(() => setLoading(false));
+    };
+
+    fetchDashboardData();
+
+    socket.connect();
+    socket.emit('join_user', { userId: user.id });
+
+    socket.on('booking_update', fetchDashboardData);
+    socket.on('order_update', fetchDashboardData);
+
+    return () => {
+      socket.off('booking_update', fetchDashboardData);
+      socket.off('order_update', fetchDashboardData);
+    };
   }, [user]);
 
   if (!user) return <Navigate to="/auth" />;
@@ -476,15 +492,15 @@ export default function Dashboard() {
 
 
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8 mb-20 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8 mb-20 animate-fade-in max-w-4xl mx-auto" style={{ animationDelay: '0.2s' }}>
           {[
-            { label: 'Total Narratives',  value: bookings.length, color: 'text-[var(--theme-text)]' },
-            { label: 'Active Sessions',    value: active.length,   color: 'text-blue-600' },
-            { label: 'Visits Fulfilled',   value: past.filter(b => b.status === 'completed').length, color: 'text-emerald-500' },
+            { label: 'Total Bookings',  value: bookings.length, planetClass: 'planet-earth' },
+            { label: 'Live Bookings',   value: active.length,   planetClass: 'planet-gas' },
+            { label: 'Visits Done',     value: past.filter(b => b.status === 'completed').length, planetClass: 'planet-mars' },
           ].map(s => (
-            <div key={s.label} className="glass p-8 md:p-12 flex flex-col items-center hover:-translate-y-2 transition-all duration-700 group">
-              <div className={`text-5xl md:text-6xl font-black mb-3 md:mb-4 tracking-tighter group-hover:scale-110 transition-transform ${s.color}`}>{s.value}</div>
-              <div className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-[0.4em] md:tracking-[0.5em]">{s.label}</div>
+            <div key={s.label} className={`planet-card ${s.planetClass} p-8 md:p-12 flex flex-col items-center justify-center group`}>
+              <div className="text-5xl md:text-6xl font-black mb-3 md:mb-4 tracking-tighter group-hover:scale-110 transition-transform drop-shadow-2xl text-white">{s.value}</div>
+              <div className="text-[9px] md:text-[10px] text-white/90 font-black uppercase tracking-[0.3em] md:tracking-[0.4em] drop-shadow-lg">{s.label}</div>
             </div>
           ))}
         </div>

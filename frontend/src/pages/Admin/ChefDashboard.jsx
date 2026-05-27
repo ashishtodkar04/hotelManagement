@@ -27,8 +27,8 @@ export default function ChefDashboard() {
   useEffect(() => {
     setTimeout(() => fetchOrders(), 0);
 
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => fetchOrders(true), 30000);
+    // Auto-refresh fallback every 60 seconds
+    const interval = setInterval(() => fetchOrders(true), 60000);
 
     socket.connect();
 
@@ -112,7 +112,7 @@ export default function ChefDashboard() {
               <RefreshCw size={22} className={refreshing ? 'animate-spin' : ''} />
             </button>
 
-            <div className="glass px-6 sm:px-10 py-4 sm:py-6 flex flex-row items-center justify-around gap-6 sm:gap-12 w-full lg:w-auto shadow-2xl border-2 border-blue-600/5">
+            <div className="cloud-card px-6 sm:px-10 py-4 sm:py-6 flex flex-row items-center justify-around gap-6 sm:gap-12 w-full lg:w-auto border-2 border-blue-600/5">
               <div className="text-center">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">New Orders</p>
                 <div className="flex items-center gap-3">
@@ -141,7 +141,7 @@ export default function ChefDashboard() {
         </header>
 
         {orders.length === 0 ? (
-          <div className="glass py-48 text-center border-dashed border-2 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <div className="cloud-card py-48 text-center border-dashed border-2 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <div className="w-28 h-28 bg-blue-600/5 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 border border-blue-600/10">
                <Activity size={50} className="text-blue-600 animate-pulse" />
             </div>
@@ -214,7 +214,7 @@ function TicketCard({ order, onUpdateTicket }) {
   const isReady     = order.status === 'ready';
 
   return (
-    <div className={`glass group relative hover:-translate-y-2 hover:shadow-2xl transition-all duration-700 overflow-hidden border-2 ${
+    <div className={`cloud-card group relative overflow-hidden border-2 ${
       isReady     ? 'border-emerald-500/40'
       : isPreparing ? 'border-amber-500/30'
       : 'border-[var(--theme-border)] shadow-xl'

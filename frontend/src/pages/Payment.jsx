@@ -38,7 +38,7 @@ export default function Payment() {
       }
     };
     checkMonitor();
-    const interval = setInterval(checkMonitor, 10000);
+    const interval = setInterval(checkMonitor, 30000);
     return () => clearInterval(interval);
   }, []);
   
@@ -102,7 +102,7 @@ export default function Payment() {
           navigate('/auth');
         }
       }
-    }, 3000);
+    }, 30000);
     return () => clearInterval(interval_status);
   }, [step, bookingId, navigate]);
 

@@ -27,8 +27,12 @@ export default function AdminChat() {
   // Automatically mark active thread's messages as read
   useEffect(() => {
     if (adminActiveUserId) {
-      socket.emit('mark_read', { userId: adminActiveUserId, sender: 'admin' });
-      markAdminThreadAsReadInStore(adminActiveUserId);
+      const thread = adminThreads.find(t => t.userId === adminActiveUserId);
+      const hasUnread = thread && (thread.unreadCount > 0 || thread.messages?.some(m => m.sender === 'user' && !m.is_read));
+      if (hasUnread) {
+        socket.emit('mark_read', { userId: adminActiveUserId, sender: 'admin' });
+        markAdminThreadAsReadInStore(adminActiveUserId);
+      }
     }
   }, [adminActiveUserId, adminThreads, markAdminThreadAsReadInStore]);
 
