@@ -504,7 +504,13 @@ export default function AdminDashboard() {
               onClick={() => fetchData()}
               className="w-12 h-12 bg-[var(--theme-panel)] border border-[var(--theme-border)] hover:border-blue-600 hover:text-blue-600 rounded-2xl flex items-center justify-center transition-all active:scale-90 shadow-xl"
             >
-              <RefreshCw size={24} className={refreshing ? 'animate-spin' : ''} />      <main className="max-w-[1800px] mx-auto p-4 md:p-8 lg:p-12 space-y-12">
+              <RefreshCw size={24} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        </div>
+      </header>
+      
+      <main className="max-w-[1800px] mx-auto p-4 md:p-8 lg:p-12 space-y-12">
         {/* --- 1. CONCIERGE QUICK DOCK (TOOLBAR NAVIGATION) --- */}
         <div className="flex flex-wrap gap-4 justify-start items-center">
           {[
@@ -1463,13 +1469,6 @@ export default function AdminDashboard() {
                 <div className="pt-4">
                   <button type="submit" className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-2">
                     <MessageSquare size={14} /> Send Message
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-      </main>Send Message
                   </button>
                 </div>
               </form>
