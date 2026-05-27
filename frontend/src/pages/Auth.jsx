@@ -199,7 +199,7 @@ export default function Auth() {
 
             <div className="flex flex-col items-center gap-8">
               <div className="w-full flex flex-col items-center justify-center min-h-[60px] relative">
-                {import.meta.env.VITE_GOOGLE_CLIENT_ID && !import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('v3p6b6b6') ? (
+                {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
                   <GoogleLogin
                     onSuccess={handleGoogleSuccess}
                     onError={() => setError('Google Authentication Failed')}

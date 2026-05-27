@@ -9,7 +9,7 @@ import './index.css';
 
 function SafeGoogleOAuthProvider({ children }) {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  if (!clientId || clientId.includes('placeholder') || clientId.includes('v3p6b6b6') || clientId.trim() === '') {
+  if (!clientId || clientId.includes('placeholder') || clientId.trim() === '') {
     return <>{children}</>;
   }
   return (

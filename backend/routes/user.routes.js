@@ -478,6 +478,20 @@ router.post('/booking', requireUser, validateBooking, async (req, res) => {
             deductInventoryForOrders(cart.map(i => ({ dishId: i.id, quantity: i.qty })));
         }
 
+        // ── Send booking confirmation email ──
+        const userEmail = req.session.user?.email;
+        if (userEmail) {
+            sendBookingConfirmation(userEmail, {
+                bookingRef,
+                date,
+                time,
+                table,
+                guests: normalizedGuests,
+                amount: normalizedAdvance,
+                type: 'advance'
+            }).catch(e => console.error("[EMAIL] Booking confirmation email failed:", e.message));
+        }
+
         return res.json({ success: true, id: bookingId, bookingRef });
     } catch (err) {
         await conn.rollback();
@@ -1449,4 +1463,24 @@ const verifyPaymentHandler = async (req, res) => {
 router.post('/api/sms-monitor/verify-payment', verifyPaymentHandler);
 router.post('/api/user/verify-monitor-payment', verifyPaymentHandler);
 
+// ── SMS Monitor — outgoing SMS gateway (no auth needed for Android app) ──
+router.get('/api/sms-monitor/outgoing-sms', async (req, res) => {
+    try {
+        const [smsList] = await db.execute('SELECT * FROM outgoing_sms WHERE status = "pending" ORDER BY created_at ASC LIMIT 10');
+        res.json({ success: true, sms: smsList });
+    } catch (err) {
+        res.json({ success: true, sms: [] });
+    }
+});
+
+router.post('/api/sms-monitor/outgoing-sms/:id/sent', async (req, res) => {
+    try {
+        await db.execute('UPDATE outgoing_sms SET status = "sent" WHERE id = ?', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 module.exports = router;
+
