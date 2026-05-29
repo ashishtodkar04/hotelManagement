@@ -5,6 +5,10 @@ const { validate, schemas } = require('../middleware/validation');
 const { sendBookingConfirmation, sendRegistrationEmail } = require('../services/emailService');
 const { processIncomingPayment } = require('../services/paymentService');
 
+// ── Single source of truth for tax rate (18% GST) ──
+const TAX_RATE = 0.18;
+const PAPERLESS_RATE = 0.001;
+
 const bcrypt = require('bcrypt');
 const { spawn } = require('child_process');
 const validator = require('validator');
@@ -578,18 +582,18 @@ router.get('/dashboard', async (req, res) => {
             `SELECT
                 b.*,
                 COALESCE(orders.subtotal, 0) AS subtotal,
-                (COALESCE(orders.subtotal, 0) * 0.18) AS tax,
-                IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0) AS paperless_discount,
+                (COALESCE(orders.subtotal, 0) * ${TAX_RATE}) AS tax,
+                IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * ${PAPERLESS_RATE}, 0) AS paperless_discount,
                 (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.18) 
-                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
+                    + (COALESCE(orders.subtotal, 0) * ${TAX_RATE}) 
+                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * ${PAPERLESS_RATE}, 0)
                     - COALESCE(b.discount, 0)
                 ) AS bill_amount,
                 GREATEST(0, (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.18) 
-                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
+                    + (COALESCE(orders.subtotal, 0) * ${TAX_RATE}) 
+                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * ${PAPERLESS_RATE}, 0)
                     - COALESCE(b.discount, 0) 
                     - COALESCE(b.adv_paid, 0)
                     - COALESCE(b.paid_amount, 0)
@@ -641,18 +645,18 @@ router.get('/api/my-bookings', requireUser, async (req, res) => {
             `SELECT
                 b.*, u.username, u.name AS user_real_name,
                 COALESCE(orders.subtotal, 0) AS subtotal,
-                (COALESCE(orders.subtotal, 0) * 0.18) AS tax,
-                IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0) AS paperless_discount,
+                (COALESCE(orders.subtotal, 0) * ${TAX_RATE}) AS tax,
+                IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * ${PAPERLESS_RATE}, 0) AS paperless_discount,
                 (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.18) 
-                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
+                    + (COALESCE(orders.subtotal, 0) * ${TAX_RATE}) 
+                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * ${PAPERLESS_RATE}, 0)
                     - COALESCE(b.discount, 0)
                 ) AS bill_amount,
                 GREATEST(0, (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.18) 
-                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
+                    + (COALESCE(orders.subtotal, 0) * ${TAX_RATE}) 
+                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * ${PAPERLESS_RATE}, 0)
                     - COALESCE(b.discount, 0) 
                     - COALESCE(b.adv_paid, 0)
                     - COALESCE(b.paid_amount, 0)

@@ -4,6 +4,10 @@ const db = require('../config/db');
 const { validate, schemas } = require('../middleware/validation');
 const { sendBookingConfirmation } = require('../services/emailService');
 
+// ── Single source of truth for tax rate (18% GST) ──
+const TAX_RATE = 0.18;
+const PAPERLESS_RATE = 0.001;
+
 function requireAdmin(req, res, next) {
     if (req.session?.adminId) return next();
     return res.status(401).json({ success: false, error: 'Unauthorized: Admin access required' });
@@ -148,18 +152,18 @@ router.get('/bookings', requireAdmin, async (req, res) => {
                 COALESCE(b.discount, 0) AS discount,
                 COALESCE(orders.items, 'No orders') AS items,
                 COALESCE(orders.subtotal, 0) AS subtotal,
-                (COALESCE(orders.subtotal, 0) * 0.10) AS tax,
-                IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0) AS paperless_discount,
+                (COALESCE(orders.subtotal, 0) * ${TAX_RATE}) AS tax,
+                IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * ${PAPERLESS_RATE}, 0) AS paperless_discount,
                 (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.10) 
-                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
+                    + (COALESCE(orders.subtotal, 0) * ${TAX_RATE}) 
+                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * ${PAPERLESS_RATE}, 0)
                     - COALESCE(b.discount, 0)
                 ) AS total_payable,
                 GREATEST(0, (
                     COALESCE(orders.subtotal, 0) 
-                    + (COALESCE(orders.subtotal, 0) * 0.10) 
-                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * 0.001, 0)
+                    + (COALESCE(orders.subtotal, 0) * ${TAX_RATE}) 
+                    - IF(b.user_id IS NOT NULL AND b.user_id != 0, COALESCE(orders.subtotal, 0) * ${PAPERLESS_RATE}, 0)
                     - COALESCE(b.discount, 0) 
                     - COALESCE(b.adv_paid, 0)
                     - COALESCE(b.paid_amount, 0)
@@ -283,7 +287,7 @@ router.post('/walk-in', requireStaffOrAdmin, async (req, res) => {
         const { table, guests, cart, staff_name } = req.body;
         
         const subtotal = (cart || []).reduce((sum, item) => sum + (item.price * item.qty), 0);
-        const tax = subtotal * 0.18; // Using 18% GST like everywhere else
+        const tax = subtotal * TAX_RATE; // Using 18% GST like everywhere else
         const totalBill = subtotal + tax;
 
         await conn.beginTransaction();
@@ -526,8 +530,8 @@ router.post('/update-status', requireAdmin, validate(schemas.updateBookingStatus
             const finalDiscount = Math.max(specialDiscount, loyaltyDiscount);
 
             // Tax: 18% GST, Paperless: 0.1% for registered users
-            const tax = parseFloat((subtotal * 0.18).toFixed(2));
-            const paperlessDiscount = (userId && userId !== 0) ? parseFloat((subtotal * 0.001).toFixed(2)) : 0;
+            const tax = parseFloat((subtotal * TAX_RATE).toFixed(2));
+            const paperlessDiscount = (userId && userId !== 0) ? parseFloat((subtotal * PAPERLESS_RATE).toFixed(2)) : 0;
             const finalPaidPart = parseFloat(Number(check[0].paid_amount || 0).toFixed(2));
             const totalPaidOverall = parseFloat((advPaid + finalPaidPart).toFixed(2));
             const totalToPay = parseFloat(Math.max(0, (subtotal + tax) - finalDiscount - paperlessDiscount).toFixed(2));
@@ -615,9 +619,9 @@ router.post('/checkout', requireAdmin, async (req, res) => {
         const subtotal        = parseFloat(data[0].subtotal)          || 0;
         const advPaid         = parseFloat(data[0].adv_paid)          || 0;
         const userId          = data[0].user_id;
-        const gst             = parseFloat((subtotal * 0.18).toFixed(2));
+        const gst             = parseFloat((subtotal * TAX_RATE).toFixed(2));
         const paperlessDiscount = (userId && userId !== 0)
-                                  ? parseFloat((subtotal * 0.001).toFixed(2))
+                                  ? parseFloat((subtotal * PAPERLESS_RATE).toFixed(2))
                                   : 0;
 
         // --- Loyalty & Retention Engine ---
@@ -732,9 +736,9 @@ router.get('/checkout-preview/:id', requireAdmin, async (req, res) => {
         const subtotal        = parseFloat(data[0].subtotal)          || 0;
         const advPaid         = parseFloat(data[0].adv_paid)          || 0;
         const userId          = data[0].user_id;
-        const gst             = parseFloat((subtotal * 0.18).toFixed(2));
+        const gst             = parseFloat((subtotal * TAX_RATE).toFixed(2));
         const paperlessDiscount = (userId && userId !== 0)
-                                  ? parseFloat((subtotal * 0.001).toFixed(2))
+                                  ? parseFloat((subtotal * PAPERLESS_RATE).toFixed(2))
                                   : 0;
 
         let loyaltyDiscount = 0;
@@ -859,8 +863,8 @@ router.post('/pay-at-counter', requireAdmin, async (req, res) => {
         }
 
         const specialDiscount = Math.max(parseFloat(b.discount || 0), loyaltyDiscount);
-        const tax = parseFloat((subtotal * 0.18).toFixed(2));
-        const paperlessDiscount = (userId && userId !== 0) ? parseFloat((subtotal * 0.001).toFixed(2)) : 0;
+        const tax = parseFloat((subtotal * TAX_RATE).toFixed(2));
+        const paperlessDiscount = (userId && userId !== 0) ? parseFloat((subtotal * PAPERLESS_RATE).toFixed(2)) : 0;
         const totalToPay = parseFloat(Math.max(0, (subtotal + tax) - specialDiscount - paperlessDiscount).toFixed(2));
         
         // When paying at counter, the remaining balance is paid as cash

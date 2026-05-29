@@ -6,29 +6,32 @@ import { useHotel } from './hooks/useHotel';
 import { useTheme } from './context/ThemeContext';
 import SpaceBackground from './components/SpaceBackground';
 
-// Pages
-import Home from './pages/Home';
-import Menu from './pages/Menu';
-import Booking from './pages/Booking';
-import Auth from './pages/Auth';
-import Dashboard from './pages/Dashboard';
-import Payment from './pages/Payment';
-import OrderDishes from './pages/OrderDishes';
-import History from './pages/History';
+import { lazy, Suspense } from 'react';
 
-// Admin Pages
-import AdminLogin from './pages/Admin/AdminLogin';
-import StaffLogin from './pages/Admin/StaffLogin';
-import AdminDashboard from './pages/Admin/AdminDashboard';
-import ChefDashboard from './pages/Admin/ChefDashboard';
-import WalkInPOS from './pages/Admin/WalkInPOS';
-import ManageMenu from './pages/Admin/ManageMenu';
-import InventoryWarehouse from './pages/Admin/InventoryWarehouse';
-import BookingHistory from './pages/Admin/BookingHistory';
+// Pages - Lazy Loaded
+const Home = lazy(() => import('./pages/Home'));
+const Menu = lazy(() => import('./pages/Menu'));
+const Booking = lazy(() => import('./pages/Booking'));
+const Auth = lazy(() => import('./pages/Auth'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Payment = lazy(() => import('./pages/Payment'));
+const OrderDishes = lazy(() => import('./pages/OrderDishes'));
+const History = lazy(() => import('./pages/History'));
+
+// Admin Pages - Lazy Loaded
+const AdminLogin = lazy(() => import('./pages/Admin/AdminLogin'));
+const StaffLogin = lazy(() => import('./pages/Admin/StaffLogin'));
+const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
+const ChefDashboard = lazy(() => import('./pages/Admin/ChefDashboard'));
+const WalkInPOS = lazy(() => import('./pages/Admin/WalkInPOS'));
+const ManageMenu = lazy(() => import('./pages/Admin/ManageMenu'));
+const InventoryWarehouse = lazy(() => import('./pages/Admin/InventoryWarehouse'));
+const BookingHistory = lazy(() => import('./pages/Admin/BookingHistory'));
+const AdminChat = lazy(() => import('./pages/Admin/AdminChat'));
+const PrintBill = lazy(() => import('./pages/Admin/PrintBill'));
+
 import ChatWidget from './components/ChatWidget';
-import AdminChat from './pages/Admin/AdminChat';
 import AdminChatNotificationManager from './components/AdminChatNotificationManager';
-import PrintBill from './pages/Admin/PrintBill';
 
 function AppContent() {
   const { fetchConfig, checkAuth, checkAdminAuth, isAuthLoading, isAdminLoading } = useStore();
@@ -65,31 +68,40 @@ function AppContent() {
 
       {/* ── PAGE CONTENT — 3-D scene layer ── */}
       <div className="pt-20 min-h-screen relative" style={{ zIndex: 10 }}>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/"                     element={<Home />} />
-          <Route path="/menu"                 element={<Menu />} />
-          <Route path="/booking"              element={<Booking />} />
-          <Route path="/auth"                 element={<Auth />} />
-          <Route path="/dashboard"            element={<Dashboard />} />
-          <Route path="/history"              element={<History />} />
-          <Route path="/payment/:bookingId"   element={<Payment />} />
-          <Route path="/order/:bookingId"     element={<OrderDishes />} />
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center pt-20">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+                style={{ borderColor: isDark ? '#94a3b8' : '#3b82f6', borderTopColor: 'transparent' }} />
+            </div>
+          </div>
+        }>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/"                     element={<Home />} />
+            <Route path="/menu"                 element={<Menu />} />
+            <Route path="/booking"              element={<Booking />} />
+            <Route path="/auth"                 element={<Auth />} />
+            <Route path="/dashboard"            element={<Dashboard />} />
+            <Route path="/history"              element={<History />} />
+            <Route path="/payment/:bookingId"   element={<Payment />} />
+            <Route path="/order/:bookingId"     element={<OrderDishes />} />
 
-          {/* Admin Routes */}
-          <Route path="/admin/login"          element={<AdminLogin />} />
-          <Route path="/admin/staff-login"    element={<StaffLogin />} />
-          <Route path="/admin"                element={<AdminDashboard />} />
-          <Route path="/admin/chef"           element={<ChefDashboard />} />
-          <Route path="/admin/pos"            element={<WalkInPOS />} />
-          <Route path="/admin/menu"           element={<ManageMenu />} />
-          <Route path="/admin/inventory"      element={<InventoryWarehouse />} />
-          <Route path="/admin/history"        element={<BookingHistory />} />
-          <Route path="/admin/chat"           element={<AdminChat />} />
-          <Route path="/admin/print/:bookingId" element={<PrintBill />} />
+            {/* Admin Routes */}
+            <Route path="/admin/login"          element={<AdminLogin />} />
+            <Route path="/admin/staff-login"    element={<StaffLogin />} />
+            <Route path="/admin"                element={<AdminDashboard />} />
+            <Route path="/admin/chef"           element={<ChefDashboard />} />
+            <Route path="/admin/pos"            element={<WalkInPOS />} />
+            <Route path="/admin/menu"           element={<ManageMenu />} />
+            <Route path="/admin/inventory"      element={<InventoryWarehouse />} />
+            <Route path="/admin/history"        element={<BookingHistory />} />
+            <Route path="/admin/chat"           element={<AdminChat />} />
+            <Route path="/admin/print/:bookingId" element={<PrintBill />} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
         <ChatWidget />
         <AdminChatNotificationManager />
       </div>
