@@ -117,11 +117,16 @@ async function handleMatch(conn, booking, amount, transactionId, type, io) {
     } else {
         // Final payment match — exact paisa precision
         const newFinalPaid = parseFloat((Number(booking.paid_amount || 0) + exactAmount).toFixed(2));
+        
+        // We calculate totalPaidOverall just for reference, but we DO NOT overwrite bill_amount. 
+        // bill_amount was calculated at checkout and MUST represent the true cost of the meal.
         const totalPaidOverall = parseFloat((Number(booking.adv_paid || 0) + newFinalPaid).toFixed(2));
 
+        console.log(`[PAYMENT-SERVICE] Updating Final Payment for #${booking.id}: newFinalPaid=₹${newFinalPaid} (Total Paid: ₹${totalPaidOverall}, True Bill: ₹${booking.bill_amount})`);
+
         await conn.execute(
-            `UPDATE bookings SET final_payment_verified = 1, status = 'completed', paid_amount = ?, bill_amount = ? WHERE id = ?`,
-            [newFinalPaid, totalPaidOverall, booking.id]
+            `UPDATE bookings SET final_payment_verified = 1, status = 'completed', paid_amount = ? WHERE id = ?`,
+            [newFinalPaid, booking.id]
         );
 
         // Set table to available
@@ -169,13 +174,12 @@ async function handleMatch(conn, booking, amount, transactionId, type, io) {
                     WHERE o.booking_id = ?
                 `, [booking.id]);
                 
-                // We need to pass bill_amount inside the booking for the PDF generator
-                // In handleMatch, we update bill_amount in DB but `booking` object is the OLD snapshot.
-                // We must update the `booking` object with the new totals calculated above.
+                // In handleMatch, we update paid_amount in DB but `booking` object is the OLD snapshot.
+                // We must update the `booking` object with the new final paid value.
+                // We leave bill_amount intact since it reflects the true calculated cost.
                 const newFinalPaid = parseFloat((Number(booking.paid_amount || 0) + exactAmount).toFixed(2));
-                const totalPaidOverall = parseFloat((Number(booking.adv_paid || 0) + newFinalPaid).toFixed(2));
                 
-                const updatedBooking = { ...booking, paid_amount: newFinalPaid, bill_amount: totalPaidOverall };
+                const updatedBooking = { ...booking, paid_amount: newFinalPaid };
                 
                 pdfBuffer = await generateBillPDF(updatedBooking, orders);
             }
