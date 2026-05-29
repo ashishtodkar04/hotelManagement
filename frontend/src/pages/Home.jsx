@@ -67,13 +67,10 @@ export default function Home() {
               { label: 'Years of Service', value: `${new Date().getFullYear() - parseInt(HOTEL_YEAR)}+`, planet: 'planet-earth' },
               { label: 'Dishes We Make', value: '80+', planet: 'planet-mars' },
               { label: 'Happy Guests', value: '50K+', planet: 'planet-gas' },
-              { label: 'Awards Won', value: '18', planet: '' },
+              { label: 'Awards Won', value: '18', planet: 'planet-violet' },
             ].map((s, i) => (
               <div key={i} className={`planet-card ${s.planet} flex flex-col items-center justify-center group mx-auto`}
-                style={{ width: '160px', height: '160px',
-                  background: s.planet ? undefined :
-                    'radial-gradient(circle at 35% 35%, #e879f9 0%, #8b5cf6 50%, #4c1d95 90%)',
-                }}>
+                style={{ width: '160px', height: '160px' }}>
                 <div className="text-3xl md:text-4xl font-black mb-1 group-hover:scale-110 transition-transform text-white drop-shadow-2xl">{s.value}</div>
                 <div className="text-[8px] text-white/80 font-black uppercase tracking-[0.2em] text-center drop-shadow px-4">{s.label}</div>
               </div>
@@ -214,13 +211,11 @@ export default function Home() {
               { to: '/menu', label: t('menu'), planet: 'planet-earth', desc: 'See our dishes' },
               { to: '/booking', label: t('booking'), planet: 'planet-mars', desc: 'Book a table' },
               { to: '/auth', label: t('login'), planet: 'planet-gas', desc: 'Your account' },
-              { to: '/admin', label: t('admin'), planet: '', desc: 'Staff area', color: 'radial-gradient(circle at 35% 35%, #e879f9 0%, #8b5cf6 50%, #4c1d95 90%)' },
+              { to: '/admin', label: t('admin'), planet: 'planet-violet', desc: 'Staff area' },
             ].map((link, i) => (
               <Link key={i} to={link.to}
                 className={`planet-card ${link.planet} group flex flex-col items-center justify-center text-center`}
-                style={{ width: '140px', height: '140px', textDecoration: 'none',
-                  background: link.planet ? undefined : link.color,
-                }}>
+                style={{ width: '140px', height: '140px', textDecoration: 'none' }}>
                 <div className="text-xs font-black uppercase tracking-[0.2em] text-white mb-1 group-hover:scale-110 transition-transform drop-shadow">{link.label}</div>
                 <div className="text-[9px] text-white/70 font-bold">{link.desc}</div>
               </Link>

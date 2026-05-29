@@ -10,29 +10,20 @@ export default function SpaceBackground() {
   const { theme } = useTheme();
   const location = useLocation();
   const path = location.pathname;
+  const isDark = theme === 'dark';
 
-  let pageType = 'gas-giant';
-  if (path === '/') pageType = 'gas-giant';
-  else if (path.startsWith('/menu')) pageType = 'lava';
-  else if (path.startsWith('/booking')) pageType = 'ocean';
-  else if (path.startsWith('/auth')) pageType = 'eclipse';
-  else if (path.startsWith('/dashboard')) pageType = 'sun';
-  else if (path.startsWith('/history')) pageType = 'ancient-moon';
-  else if (path.startsWith('/payment')) pageType = 'neon-shield';
-  else if (path.startsWith('/order')) pageType = 'nebula-cherry';
-  else if (path.startsWith('/admin')) pageType = 'admin-subtle';
+  let pageType = null;
+  if (path === '/') {
+    pageType = isDark ? 'gas-giant' : 'sun';
+  } else if (path.startsWith('/booking')) {
+    pageType = 'ocean';
+  }
 
-  const planetClass = {
+  const planetClass = pageType ? {
     'gas-giant': 'planet-gas-giant',
-    'lava': 'planet-lava',
-    'ocean': 'planet-ocean',
-    'eclipse': 'planet-eclipse',
     'sun': 'planet-sun',
-    'ancient-moon': 'planet-ancient-moon',
-    'neon-shield': 'planet-neon-shield',
-    'nebula-cherry': 'planet-nebula-cherry',
-    'admin-subtle': 'planet-admin-subtle'
-  }[pageType] || 'planet-gas-giant';
+    'ocean': 'planet-ocean'
+  }[pageType] : '';
 
   return (
     <div className="ambient-bg" aria-hidden="true">
@@ -81,7 +72,7 @@ export default function SpaceBackground() {
       <div className="nebula-wisp nebula-wisp-3" />
 
       {/* ── CENTRAL CELESTIAL BODY ── */}
-      <div className={`celestial-body ${planetClass}`} />
+      {pageType && <div className={`celestial-body ${planetClass}`} />}
 
       {/* Gas Giant orbiting rings */}
       {pageType === 'gas-giant' && <div className="celestial-ring" />}
@@ -91,14 +82,6 @@ export default function SpaceBackground() {
         <>
           <div className="space-cloud space-cloud-1" />
           <div className="space-cloud space-cloud-2" />
-        </>
-      )}
-
-      {/* ── Moon craters (visible only for ancient moon page) ── */}
-      {pageType === 'ancient-moon' && (
-        <>
-          <div className="moon-crater" style={{ width: '4.5vmin', height: '4.5vmin', top: 'calc(50% - 8vmin)',  left: 'calc(50% - 3vmin)' }} />
-          <div className="moon-crater" style={{ width: '3vmin',   height: '3vmin',   top: 'calc(50% + 3vmin)',  left: 'calc(50% + 5vmin)' }} />
         </>
       )}
     </div>
