@@ -2,12 +2,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import useStore from '../../store/useStore';
 import api from '../../services/api';
-import { useTheme } from '../../context/ThemeContext';
-import { useLanguage } from '../../context/LanguageContext';
 import { useHotel } from '../../hooks/useHotel';
 import socket from '../../services/socket';
 import {
-  CreditCard,
   Activity,
   Zap,
   Sparkles,
@@ -15,10 +12,8 @@ import {
   RefreshCw,
   Clock,
   CheckCircle2,
-  XCircle,
   Check,
   X,
-  User,
   Phone,
   Mail,
   Grid
@@ -26,8 +21,6 @@ import {
 
 export default function PendingPayments() {
   const { isAdmin, isAdminLoading } = useStore();
-  const { theme } = useTheme();
-  const { t } = useLanguage();
   const { name: HOTEL_NAME } = useHotel();
 
   const [payments, setPayments] = useState([]);
@@ -63,8 +56,10 @@ export default function PendingPayments() {
   useEffect(() => {
     if (!isAdmin) return;
 
-    fetchPayments();
-    fetchMonitorStatus();
+    Promise.resolve().then(() => {
+      fetchPayments();
+      fetchMonitorStatus();
+    });
 
     const interval = setInterval(() => {
       setCurrentTime(new Date());

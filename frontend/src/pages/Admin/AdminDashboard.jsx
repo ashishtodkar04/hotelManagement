@@ -23,7 +23,6 @@ import {
   ShieldCheck,
   Package,
   MessageSquare,
-  UserPlus,
   Search,
   SearchX,
   X,
@@ -79,7 +78,6 @@ export default function AdminDashboard() {
 
   const [tables, setTables] = useState(() => safeParse('admin_tables'));
   const [bookings, setBookings] = useState(() => safeParse('admin_bookings'));
-  const [payments, setPayments] = useState(() => safeParse('admin_payments'));
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
@@ -142,17 +140,15 @@ export default function AdminDashboard() {
     async (silent = false) => {
       if (!silent) setRefreshing(true);
       try {
-        const [tr, br, sr, pr, str] = await Promise.all([
+        const [tr, br, sr, str] = await Promise.all([
           api.get('/api/admin/tables'),
           api.get('/api/admin/bookings'),
           api.get('/api/admin/stats'),
-          api.get('/api/admin/payments'),
           api.get('/api/admin/staff')
         ]);
 
         setTables(tr.data?.tables || []);
         setBookings(br.data?.bookings || []);
-        setPayments(pr.data?.payments || []);
         setStaff(str.data?.staff || []);
         setStatsData({
           dailyRevenue: sr.data?.dailyRevenue || [],
@@ -197,7 +193,6 @@ export default function AdminDashboard() {
 
         localStorage.setItem('admin_tables', JSON.stringify(tr.data?.tables || []));
         localStorage.setItem('admin_bookings', JSON.stringify(br.data?.bookings || []));
-        localStorage.setItem('admin_payments', JSON.stringify(pr.data?.payments || []));
       } catch (err) {
         console.error(err);
       } finally {
@@ -259,12 +254,6 @@ export default function AdminDashboard() {
     } catch (err) { alert(err.response?.data?.error || 'Failed to authorize state change'); }
   };
 
-  const verifyPayment = async (bookingId, status) => {
-    try {
-      await api.post('/api/admin/verify-payment', { bookingId, status });
-      fetchData(true);
-    } catch { alert('Identity Verification Error'); }
-  };
 
   const openCheckout = async (booking) => {
     setCheckoutDiscount('');
@@ -457,7 +446,6 @@ export default function AdminDashboard() {
     return true;
   });
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
     <div className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] transition-colors duration-500 pb-20">
