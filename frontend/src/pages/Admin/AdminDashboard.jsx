@@ -455,7 +455,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <h1 className="text-xl md:text-3xl font-black tracking-tighter">{HOTEL_NAME} <span className="text-blue-600">Executive</span></h1>
-              <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] md:tracking-[0.4em] mt-1">Namaste! {t('admin_terminal')}</p>
+              <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] md:tracking-[0.4em] mt-1">{t('admin_terminal')}</p>
             </div>
           </div>
 
@@ -463,7 +463,7 @@ export default function AdminDashboard() {
             <div className="hidden lg:flex items-center gap-4 bg-[var(--theme-accent)] px-6 py-2.5 rounded-2xl border border-[var(--theme-border)] shadow-sm">
               <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${monitorStatus.active ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {monitorStatus.active ? <Wifi size={14} className="animate-pulse" /> : <WifiOff size={14} />}
-                {monitorStatus.active ? 'Sovereign Online' : 'Network Interrupted'}
+                {monitorStatus.active ? 'Online' : 'Offline'}
               </div>
               <div className="h-4 w-px bg-[var(--theme-border)]" />
               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -516,7 +516,7 @@ export default function AdminDashboard() {
           {[
             { to: "/admin/history", icon: History, label: "Archives" },
             { to: "/admin/pos", icon: CreditCard, label: "Walk-in Terminal" },
-            { to: "/admin/menu", icon: Utensils, label: "Culinary Architect" },
+            { to: "/admin/menu", icon: Utensils, label: "Menu Manager" },
             { to: "/admin/warehouse", icon: Package, label: "Warehouse Assets" },
             { to: "/admin/chef", icon: ChefHat, label: "Kitchen Feed" },
             { to: "/admin/chat", icon: MessageSquare, label: "Concierge Chat" },
@@ -553,9 +553,9 @@ export default function AdminDashboard() {
                   <WifiOff size={28} />
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xl font-black text-rose-500 uppercase tracking-tighter">Synchronization Protocol Offline</p>
+                  <p className="text-xl font-black text-rose-500 uppercase tracking-tighter">Payment Monitor Offline</p>
                   <p className="text-xs font-bold text-slate-400 max-w-xl leading-relaxed">
-                    Namaste! The payment monitor has lost its bridge. To restore live verification:
+                    The payment monitor has lost connection. To restore live verification:
                   </p>
                   <div className="flex flex-wrap gap-4 mt-2">
                     <div className="bg-[var(--theme-accent)] px-4 py-2 rounded-xl border border-[var(--theme-border)]">
@@ -579,7 +579,7 @@ export default function AdminDashboard() {
               <div className="w-10 h-10 bg-blue-600/10 text-blue-600 rounded-xl flex items-center justify-center">
                 <Zap size={20} />
               </div>
-              <p className="text-sm font-black text-[var(--theme-text)] tracking-tight">Sovereign Connection Established. <span className="text-blue-600">Monitoring Active.</span></p>
+              <p className="text-sm font-black text-[var(--theme-text)] tracking-tight">Connected. <span className="text-blue-600">Monitoring Active.</span></p>
             </div>
             <Sparkles size={16} className="text-blue-600/30 animate-pulse" />
           </div>
@@ -660,7 +660,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h2 className="text-lg font-black text-[var(--theme-text)] tracking-tighter">{t('live_bookings')}</h2>
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Active Customer Transmission Ledger</p>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Active Bookings</p>
                 </div>
               </div>
             </div>
@@ -1017,7 +1017,7 @@ export default function AdminDashboard() {
               onClick={() => setShowAuditLedger(!showAuditLedger)}
               className="w-full px-8 py-5 flex items-center justify-between text-xs font-black uppercase tracking-widest hover:bg-[var(--theme-accent)] transition-all"
             >
-              <span className="flex items-center gap-2"><ShieldCheck size={16} className="text-emerald-500" /> Sovereign Audit Ledger (Detailed Profit & Loss Table)</span>
+              <span className="flex items-center gap-2"><ShieldCheck size={16} className="text-emerald-500" /> Profit & Loss Details</span>
               <span>{showAuditLedger ? 'HIDE DETAILS ▲' : 'SHOW DETAILS ▼'}</span>
             </button>
 
@@ -1151,8 +1151,8 @@ export default function AdminDashboard() {
           <div className="lg:col-span-5 glass p-6 border border-blue-600/5 flex flex-col gap-6 relative overflow-hidden">
             <div className="flex justify-between items-center border-b border-[var(--theme-border)] pb-4">
               <div>
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Identity Audit Panel</h2>
-                <p className="text-xs font-bold text-slate-500 mt-0.5">Sovereign Identity Database</p>
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">User Search</h2>
+                <p className="text-xs font-bold text-slate-500 mt-0.5">User Database</p>
               </div>
               <button 
                 onClick={() => setShowSearchSuite(!showSearchSuite)}
@@ -1176,7 +1176,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <button type="submit" disabled={searchLoading} className="btn-primary py-2.5 px-4 rounded-xl text-[8px]">
-                    {searchLoading ? <RefreshCw className="animate-spin" size={10} /> : 'AUDIT'}
+                    {searchLoading ? <RefreshCw className="animate-spin" size={10} /> : 'SEARCH'}
                   </button>
                   {searchResults && (
                     <button type="button" onClick={() => { setSearchResults(null); setSearchQuery(''); }} className="btn-secondary py-2 px-3 rounded-xl text-[8px] text-rose-500 border-rose-500/20">
@@ -1236,7 +1236,7 @@ export default function AdminDashboard() {
                 onClick={() => setShowSearchSuite(true)}
                 className="w-full bg-[var(--theme-accent)] border border-[var(--theme-border)] hover:border-blue-600 py-6 rounded-2xl text-[9px] font-black uppercase tracking-widest text-slate-400 text-center transition-all hover:text-blue-600"
               >
-                🔍 Open Search / Identity Auditor
+                🔍 Open Search / User Lookup
               </button>
             )}
           </div>

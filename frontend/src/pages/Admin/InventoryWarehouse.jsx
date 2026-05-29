@@ -313,7 +313,7 @@ export default function InventoryWarehouse() {
         {activeTab === 'warehouse_logs' && (
           <div className="space-y-8 animate-fade-in">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-black text-[var(--theme-text)] tracking-tight">Expense Audit</h2>
+              <h2 className="text-xl font-black text-[var(--theme-text)] tracking-tight">Expense Report</h2>
               <button onClick={() => setShowAddLog(!showAddLog)} className="btn-primary py-3 px-6 text-[10px] bg-orange-600 hover:bg-orange-700 shadow-orange-500/20"><Plus size={14} className="inline mr-2" /> LOG EXPENSE</button>
             </div>
 

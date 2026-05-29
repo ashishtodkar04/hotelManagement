@@ -6,7 +6,7 @@ import useStore from '../store/useStore';
 
 const TABS = [
   { id: 'Starter', label: 'Starter', emoji: '🥗', desc: 'Fresh beginnings to awaken your palate.' },
-  { id: 'Main Course', label: 'Main Course', emoji: '🍽️', desc: 'Hearty and masterfully prepared main selections.' },
+  { id: 'Main Course', label: 'Main Course', emoji: '🍽️', desc: 'Hearty and delicious main dishes.' },
   { id: 'Dessert', label: 'Dessert', emoji: '🍮', desc: 'A sweet and satisfying conclusion.' },
   { id: 'Drinks', label: 'Drinks', emoji: '🥂', desc: 'Refreshing beverages and fine drinks.' },
 ];
@@ -52,7 +52,7 @@ function DishCard({ dish, tabEmoji }) {
         </div>
         <h3 className="font-black text-xl md:text-2xl mb-4 text-[var(--theme-text)] group-hover:text-blue-600 transition-colors leading-[1.1] tracking-tighter">{dish.name}</h3>
         <p className="text-slate-400 dark:text-slate-500 text-xs md:text-sm leading-relaxed line-clamp-3 font-bold tracking-tight mb-8">
-          {dish.description || 'Experience a masterfully orchestrated selection, featuring artisanal ingredients and avant-garde techniques.'}
+          {dish.description || 'A delicious dish made with fresh ingredients and great care.'}
         </p>
       </div>
 
@@ -126,7 +126,7 @@ export default function Menu() {
       <div className="max-w-[1600px] mx-auto">
         <header className="text-center mb-20 md:mb-32 px-4">
           <div className="inline-flex items-center gap-3 bg-blue-600/10 text-blue-600 mb-8 py-3 px-6 md:px-8 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] border border-blue-600/20 shadow-xl animate-fade-in">
-             <Activity size={14} className="animate-pulse" /> Live Culinary Transmission
+             <Activity size={14} className="animate-pulse" /> Live Menu
           </div>
           <h1 className="font-serif italic text-5xl sm:text-6xl md:text-8xl lg:text-[10rem] font-bold mb-8 md:mb-10 text-[var(--theme-text)] leading-[0.9] md:leading-[0.8] tracking-tighter animate-fade-in" style={{ animationDelay: '0.2s' }}>The <span className="text-blue-600">Selection</span></h1>
           <p className="text-slate-400 dark:text-slate-500 text-lg md:text-2xl max-w-3xl mx-auto font-bold tracking-tight leading-relaxed animate-fade-in px-4" style={{ animationDelay: '0.4s' }}>Seasonal heritage ingredients, avant-garde refinement, and an uncompromising dedication to sensory perfection.</p>
@@ -198,7 +198,7 @@ export default function Menu() {
             <Search size={24} className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
             <input 
               type="text" 
-              placeholder="Search for a masterpiece…" 
+              placeholder="Search for a dish…" 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
               className="pl-20 pr-10 w-full text-xl py-6 bg-[var(--theme-panel)] border border-[var(--theme-border)] focus:ring-8 focus:ring-blue-600/5 transition-all rounded-[3rem] shadow-sm font-black outline-none tracking-tight" 
@@ -231,7 +231,7 @@ export default function Menu() {
                <Utensils size={48} className="text-slate-200" />
             </div>
             <h3 className="text-4xl font-black text-slate-300 tracking-tighter uppercase">
-              {search ? `No culinary matches for "${search}"` : 'Curating the future of fine dining.'}
+              {search ? `No dishes found for "${search}"` : 'Loading menu...'}
             </h3>
             {search && <button onClick={() => setSearch('')} className="btn-secondary mt-12">CLEAR FILTER</button>}
           </div>

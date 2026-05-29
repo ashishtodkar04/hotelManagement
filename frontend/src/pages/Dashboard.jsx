@@ -41,7 +41,7 @@ function BookingCard({ booking, onRefresh, t }) {
       if (method === 'UPI') {
         window.location.href = `/payment/${booking.id}?final=1`;
       } else {
-        alert("Namaste! Counter settlement request registered. Please visit the front desk.");
+        alert("Pay at counter request sent. Please visit the front desk.");
         onRefresh();
       }
     } catch (err) {
@@ -122,7 +122,7 @@ function BookingCard({ booking, onRefresh, t }) {
         {booking.orders?.length > 0 && (
           <div className="bg-[var(--theme-accent)] rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 border border-[var(--theme-border)] shadow-inner">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-8 flex items-center gap-3">
-              <Receipt size={16} /> Culinary Orders
+              <Receipt size={16} /> Your Orders
             </h4>
             <div className="space-y-6">
               {booking.orders.map((o, i) => (
@@ -162,7 +162,7 @@ function BookingCard({ booking, onRefresh, t }) {
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <button onClick={() => setPaymentMethod('UPI')} className="btn-primary py-5 px-10 text-[10px] gap-4">
-                <ShoppingBag size={20} /> PAY VIA DIGITAL BRIDGE (UPI)
+                <ShoppingBag size={20} /> PAY ONLINE (UPI)
               </button>
               <button onClick={() => setPaymentMethod('Hard Cash')} className="btn-secondary py-5 px-10 text-[10px] gap-4">
                 <span className="text-2xl">💵</span> SETTLE AT PHYSICAL COUNTER
@@ -176,7 +176,7 @@ function BookingCard({ booking, onRefresh, t }) {
             <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl group-hover/cash:rotate-12 transition-transform duration-700">💵</div>
             <div>
               <div className="text-2xl font-black text-blue-600 tracking-tighter mb-2">Counter Settlement Active</div>
-              <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight">Namaste! Please present <span className="text-[var(--theme-text)]">₹{Number(booking.remaining_due || 0).toFixed(0)}</span> to the front desk. Your session will be finalized after admin confirmation.</p>
+              <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight">Please pay <span className="text-[var(--theme-text)]">₹{Number(booking.remaining_due || 0).toFixed(0)}</span> at the front desk. Your booking will be completed after admin confirms.</p>
             </div>
           </div>
         )}
@@ -222,8 +222,8 @@ export default function Dashboard() {
   const handlePassUpdate = async (e) => {
 
     e.preventDefault();
-    if (passForm.new !== passForm.confirm) return setPassError("New security keys do not match.");
-    if (passForm.new.length < 6) return setPassError("Security key must be at least 6 characters.");
+    if (passForm.new !== passForm.confirm) return setPassError("New passwords do not match.");
+    if (passForm.new.length < 6) return setPassError("Password must be at least 6 characters.");
     
     setPassLoading(true); setPassError(''); setPassSuccess('');
     try {
@@ -319,7 +319,7 @@ export default function Dashboard() {
               
               <div className="flex justify-between items-center mb-10 border-b border-[var(--theme-border)] pb-6">
                 <div>
-                  <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.5em] mb-1.5">Sovereign Security Shield</h3>
+                  <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.5em] mb-1.5">Account Security</h3>
                   <p className="text-2xl md:text-3xl font-black tracking-tighter text-[var(--theme-text)]">Account Shield & Security Center</p>
                 </div>
                 <button onClick={() => setShowSecurity(false)} className="w-12 h-12 rounded-full bg-[var(--theme-accent)] flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all border border-[var(--theme-border)]">
@@ -342,7 +342,7 @@ export default function Dashboard() {
                         <div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full w-fit">
                           🔒 PROTECTED
                         </div>
-                        <h4 className="text-base font-black text-[var(--theme-text)] mt-1">Sovereign Protection Active</h4>
+                        <h4 className="text-base font-black text-[var(--theme-text)] mt-1">Account Protected</h4>
                       </div>
                     </div>
 
@@ -353,7 +353,7 @@ export default function Dashboard() {
                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">SECURE</span>
                         </div>
                       </div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-6">Sovereign Security Score</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-6">Security Score</p>
                     </div>
 
                     <div className="space-y-4">
@@ -362,7 +362,7 @@ export default function Dashboard() {
                         {[
                           { label: 'Registered Email', value: user?.email || 'N/A' },
                           { label: 'Role Authority', value: 'Guest Customer' },
-                          { label: 'System TLS Bridge', value: 'Sovereign SSL/TLS 1.3' },
+                          { label: 'Connection', value: 'SSL/TLS 1.3 Encrypted' },
                           { label: 'Client Node IP', value: '127.0.0.1 (Localhost)' }
                         ].map((d, idx) => (
                           <div key={idx} className="flex justify-between items-center py-2 px-4 bg-[var(--theme-panel)] rounded-xl border border-[var(--theme-border)] text-[9px] font-black">
@@ -384,12 +384,12 @@ export default function Dashboard() {
                   {/* Identity Sync Card */}
                   <div className="glass p-8 rounded-[2rem] border-[var(--theme-border)] space-y-6">
                     <h4 className="text-[11px] font-black text-[var(--theme-text)] uppercase tracking-[0.3em] flex items-center gap-3">
-                      <User size={18} className="text-blue-600" /> BIOLOGICAL DESIGNATION & PHONE
+                      <User size={18} className="text-blue-600" /> NAME & PHONE
                     </h4>
                     <form onSubmit={handleProfileUpdate} className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-2">biological name</label>
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-2">name</label>
                           <div className="relative group">
                             <User size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
                             <input 
@@ -424,7 +424,7 @@ export default function Dashboard() {
                   {/* Password Rotation Card */}
                   <div className="glass p-8 rounded-[2rem] border-[var(--theme-border)] space-y-6">
                     <h4 className="text-[11px] font-black text-[var(--theme-text)] uppercase tracking-[0.3em] flex items-center gap-3">
-                      <Key size={18} className="text-blue-600" /> MASTER KEY ROTATION
+                      <Key size={18} className="text-blue-600" /> CHANGE PASSWORD
                     </h4>
                     <form onSubmit={handlePassUpdate} className="space-y-5">
                       <div className="space-y-2">
@@ -480,7 +480,7 @@ export default function Dashboard() {
                       </div>
 
                       <button type="submit" disabled={passLoading} className="w-full btn-primary py-4 rounded-xl shadow-2xl text-[9px] font-black tracking-widest uppercase flex items-center justify-center gap-3">
-                        {passLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Save size={14} /> ROTATE SOVEREIGN KEYS</>}
+                        {passLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Save size={14} /> UPDATE PASSWORD</>}
                       </button>
                     </form>
                   </div>
@@ -512,8 +512,8 @@ export default function Dashboard() {
         ) : bookings.length === 0 ? (
           <div className="glass py-48 text-center border-dashed border-2 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
             <Calendar size={100} className="mx-auto mb-10 text-slate-200" />
-            <h3 className="text-4xl font-black text-[var(--theme-text)] mb-6 tracking-tighter uppercase">Your culinary log is clear</h3>
-            <p className="text-slate-400 text-xl mb-16 font-bold tracking-tight max-w-lg mx-auto">Namaste! Initialize your first experience at {HOTEL_NAME} today.</p>
+            <h3 className="text-4xl font-black text-[var(--theme-text)] mb-6 tracking-tighter uppercase">No bookings yet</h3>
+            <p className="text-slate-400 text-xl mb-16 font-bold tracking-tight max-w-lg mx-auto">Make your first booking at {HOTEL_NAME} today!</p>
             <Link to="/booking" className="btn-primary py-8 px-20 text-lg w-fit mx-auto shadow-2xl">
               <Plus size={28} /> {t('book_now').toUpperCase()}
             </Link>
@@ -530,7 +530,7 @@ export default function Dashboard() {
             )}
             {past.length > 0 && (
               <div className="space-y-12">
-                <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.6em] ml-8 opacity-40">Culinary History</h2>
+                <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.6em] ml-8 opacity-40">Booking History</h2>
                 <div className="opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-1000 space-y-10">
                   {past.map(b => <BookingCard key={b.id} booking={b} onRefresh={() => window.location.reload()} t={t} />)}
                 </div>

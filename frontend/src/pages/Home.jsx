@@ -183,7 +183,7 @@ export default function Home() {
       {/* ── CELESTIAL CONTACT & COORDINATES ── */}
       <section className="py-20 px-6 relative" style={{ zIndex: 1 }}>
         <div className="max-w-6xl mx-auto text-center mb-16">
-          <p className="text-[10px] font-black uppercase tracking-[0.6em] mb-4" style={{ color: isDark ? '#a78bfa' : '#2563eb' }}>Celestial Transmissions</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.6em] mb-4" style={{ color: isDark ? '#a78bfa' : '#2563eb' }}>Contact Us</p>
           <h2 className="font-serif italic text-4xl md:text-6xl font-bold leading-tight">Reach Our Station</h2>
         </div>
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">

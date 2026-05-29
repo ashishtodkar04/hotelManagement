@@ -53,7 +53,7 @@ export default function BookingHistory() {
             </div>
             <div>
                <div className="inline-flex items-center gap-3 bg-blue-600/10 text-blue-600 mb-2 py-1.5 px-6 rounded-full text-[9px] font-black uppercase tracking-[0.4em] border border-blue-600/20 shadow-sm">
-                  <Activity size={12} className="animate-pulse" /> Global Audit System
+                  <Activity size={12} className="animate-pulse" /> Booking History
                </div>
                <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-[var(--theme-text)]">Booking <span className="text-blue-600">History</span></h1>
             </div>
@@ -87,7 +87,7 @@ export default function BookingHistory() {
               onChange={e => setStatusFilter(e.target.value)}
               className="w-full pl-20 pr-10 py-7 bg-[var(--theme-panel)] border border-[var(--theme-border)] focus:ring-8 focus:ring-blue-600/5 rounded-3xl text-[var(--theme-text)] outline-none appearance-none font-black text-xs uppercase tracking-[0.3em] shadow-sm"
             >
-              <option value="all">ALL PROTOCOLS</option>
+              <option value="all">ALL STATUSES</option>
               <option value="completed">FULFILLED</option>
               <option value="cancelled">TERMINATED</option>
               <option value="confirmed">CONFIRMED</option>
@@ -105,7 +105,7 @@ export default function BookingHistory() {
                   <th className="px-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Identity</th>
                   <th className="px-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Placement</th>
                   <th className="px-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Financials</th>
-                  <th className="px-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Audit Trails</th>
+                  <th className="px-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Details</th>
                   <th className="px-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] text-right">Status</th>
                 </tr>
               </thead>
@@ -146,7 +146,7 @@ export default function BookingHistory() {
                       <td className="px-12 py-10">
                          <div className="flex flex-col gap-3">
                             <div className={`text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-3 ${b.payment_verified ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-600 opacity-30'}`}>
-                               <div className={`w-2 h-2 rounded-full ${b.payment_verified ? 'bg-emerald-500' : 'bg-slate-300'}`} /> ADVANCE PROTOCOL
+                               <div className={`w-2 h-2 rounded-full ${b.payment_verified ? 'bg-emerald-500' : 'bg-slate-300'}`} /> ADVANCE PAYMENT
                             </div>
                             <div className={`text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-3 ${b.final_payment_verified ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-600 opacity-30'}`}>
                                <div className={`w-2 h-2 rounded-full ${b.final_payment_verified ? 'bg-emerald-500' : 'bg-slate-300'}`} /> FINAL SETTLEMENT

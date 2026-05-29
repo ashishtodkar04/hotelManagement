@@ -176,7 +176,7 @@ export default function WalkInPOS() {
                   </div>
                   <div>
                     <h3 className="font-black text-2xl text-[var(--theme-text)] tracking-tighter">{t('cart_summary')}</h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Namaste! Direct Entry</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Walk-In Entry</p>
                   </div>
                 </div>
               </div>
@@ -273,7 +273,7 @@ export default function WalkInPOS() {
                         )}
                       </button>
                       <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-40 flex items-center justify-center gap-3">
-                         <Sparkles size={10} className="text-blue-600" /> Namaste! Direct Entry Active
+                         <Sparkles size={10} className="text-blue-600" /> Walk-In Active
                       </p>
                     </div>
                 )}

@@ -40,7 +40,7 @@ export default function History() {
              <Activity size={14} className="animate-pulse" /> Archive Retrieval System
           </div>
           <h1 className="font-serif italic text-5xl md:text-8xl lg:text-9xl font-bold text-[var(--theme-text)] leading-[1] md:leading-[0.8] tracking-tighter">Past <span className="text-blue-600">Narratives</span></h1>
-          <p className="text-lg md:text-2xl mt-8 md:mt-10 font-bold tracking-tight max-w-2xl leading-relaxed px-2">A chronologically orchestrated record of your culinary journeys at {HOTEL_NAME}.</p>
+          <p className="text-lg md:text-2xl mt-8 md:mt-10 font-bold tracking-tight max-w-2xl leading-relaxed px-2">A complete record of your past bookings at {HOTEL_NAME}.</p>
         </header>
 
         {loading ? (
@@ -51,7 +51,7 @@ export default function History() {
           <div className="cloud-card py-48 text-center border-dashed border-2 max-w-4xl mx-auto animate-fade-in">
             <Calendar size={100} className="mx-auto mb-10 text-slate-200" />
             <h3 className="text-4xl font-black text-[var(--theme-text)] mb-6 tracking-tighter uppercase">No archived sessions</h3>
-            <p className="text-slate-400 text-xl mb-16 font-bold tracking-tight max-w-md mx-auto">Initialize your first experience to build your culinary legacy.</p>
+            <p className="text-slate-400 text-xl mb-16 font-bold tracking-tight max-w-md mx-auto">Make your first booking to start building your history.</p>
             <Link to="/booking" className="btn-primary py-8 px-20 text-lg w-fit mx-auto shadow-2xl">
                BEGIN THE COLLECTION
             </Link>
@@ -115,7 +115,7 @@ export default function History() {
                 
                 {b.final_payment_verified === 1 && (
                   <div className="mt-10 flex items-center gap-4 text-[10px] text-emerald-500 font-black uppercase tracking-[0.4em] opacity-60 group-hover:opacity-100 transition-opacity">
-                    <CheckCircle size={20} /> SESSION AUDIT COMPLETE & ARCHIVED
+                    <CheckCircle size={20} /> COMPLETED & ARCHIVED
                   </div>
                 )}
               </div>

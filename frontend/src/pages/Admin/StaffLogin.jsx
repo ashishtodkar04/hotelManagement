@@ -84,7 +84,7 @@ export default function StaffLogin() {
         </div>
 
         <p className="text-center mt-12 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          Authorized personnel only • <span className="text-blue-600">{HOTEL_NAME} Administrative Protocol</span>
+          Staff only • <span className="text-blue-600">{HOTEL_NAME} Staff Login</span>
         </p>
       </div>
     </div>

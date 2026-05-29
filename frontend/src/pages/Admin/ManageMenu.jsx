@@ -99,7 +99,7 @@ export default function ManageMenu() {
 
   const handleDelete = (id) => {
     setConfirmAction({
-      title: 'Erase Culinary Creation?',
+      title: 'Delete Dish?',
       message: 'Are you sure you want to permanently delete this signature masterpiece from the digital catalog? This operation is irreversible.',
       onConfirm: async () => {
         try { 
@@ -239,7 +239,7 @@ export default function ManageMenu() {
                 <h2 className="text-2xl md:text-3xl font-black text-[var(--theme-text)] tracking-tight">
                   {editing ? 'Refine Selection' : 'New Dish Specification'}
                 </h2>
-                <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Culinary Asset Development</p>
+                <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Add New Dish</p>
               </div>
               <button onClick={() => { setShowAdd(false); setEditing(null); }} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[var(--theme-border)] flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all">
                 <X size={20} md:size={24} />
@@ -320,7 +320,7 @@ export default function ManageMenu() {
 
         {/* ── Culinary Catalog ────────────────────────────────── */}
         <h2 className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 mb-8 ml-4 flex items-center gap-3">
-          <Utensils size={14} /> Culinary Catalog
+          <Utensils size={14} /> Menu Items
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-10">
@@ -330,7 +330,7 @@ export default function ManageMenu() {
             <div className="col-span-full py-40 glass text-center border-dashed border-2">
               <Utensils size={80} className="mx-auto mb-8 text-slate-200" />
               <h3 className="text-3xl font-black text-slate-300 tracking-tight">Your menu is an open canvas.</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-4">Start defining your culinary offerings</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-4">Start adding your menu items</p>
               <button onClick={() => setShowAdd(true)} className="btn-secondary mt-10">INITIALIZE ARCHITECT</button>
             </div>
           ) : (
@@ -426,7 +426,7 @@ function DishForm({ formData, setFormData, onSave, onCancel }) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12">
       <div className="lg:col-span-2">
         <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 ml-1">Creation Name</label>
-        <input type="text" placeholder="Signature Culinary Name" value={formData.name}
+        <input type="text" placeholder="Dish Name" value={formData.name}
           onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full" />
       </div>
 
@@ -460,7 +460,7 @@ function DishForm({ formData, setFormData, onSave, onCancel }) {
             onChange={e => setFormData({ ...formData, image: e.target.value })} className="w-full" />
         </div>
         <div>
-          <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 ml-1">Culinary Orientation</label>
+          <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 ml-1">Category</label>
           <div className="flex gap-6">
             <button type="button" onClick={() => setFormData({ ...formData, type: 'veg' })}
               className={`flex-1 py-4 px-6 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest ${formData.type === 'veg' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500 shadow-xl shadow-emerald-500/20' : 'bg-[var(--theme-input)] border-transparent text-slate-400 hover:border-[var(--theme-border)]'}`}>

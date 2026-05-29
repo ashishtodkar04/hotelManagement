@@ -141,7 +141,7 @@ export default function Payment() {
   const handleSubmitUTR = async (e) => {
     e.preventDefault();
     if (!utr.trim() || utr.trim().length < 6) {
-      setError('Authorization Protocol Error: Invalid ID format.');
+      setError('Invalid booking ID.');
       return;
     }
     setError(''); setSubmitting(true);
@@ -251,7 +251,7 @@ export default function Payment() {
                 <Activity size={32} className="text-blue-600 shrink-0 group-hover/alert:scale-110 transition-transform" />
                 <div>
                   <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] mb-3">Live Monitor Latency</p>
-                  <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight">Namaste! Digital synchronization is currently delayed. Manual UTR submission is recommended for instant session processing.</p>
+                  <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight">Auto-verification is currently delayed. You can enter your UTR number below for faster processing.</p>
                 </div>
               </div>
             )}
@@ -284,11 +284,11 @@ export default function Payment() {
                       </div>
                       <div className="space-y-4">
                         <h4 className="text-2xl font-black text-[var(--theme-text)] uppercase tracking-tighter">
-                          {timeLeft > 0 ? `AUDITING SYSTEM... ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : t('manual_override')}
+                          {timeLeft > 0 ? `CHECKING PAYMENT... ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : t('manual_override')}
                         </h4>
-                        <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight px-10">Namaste! Scanning the global financial bridge for your digital signature. Authorization is automated.</p>
+                        <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight px-10">We are checking for your payment. This is automatic.</p>
                       </div>
-                      <button onClick={() => setShowManual(true)} className="text-[11px] font-black text-blue-600 uppercase tracking-[0.4em] hover:tracking-[0.6em] transition-all">ENABLE MANUAL UTR BRIDGE</button>
+                      <button onClick={() => setShowManual(true)} className="text-[11px] font-black text-blue-600 uppercase tracking-[0.4em] hover:tracking-[0.6em] transition-all">ENTER UTR MANUALLY</button>
                     </div>
                   ) : (
                     <div className="space-y-10 animate-fade-in">

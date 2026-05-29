@@ -100,7 +100,7 @@ export default function ChefDashboard() {
                 <ChefHat size={24} />
                 <span className="text-[10px] font-black uppercase tracking-[0.5em]">Executive Kitchen Terminal</span>
               </div>
-              <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-[var(--theme-text)] uppercase font-serif italic">Culinary <span className="text-blue-600">Feed</span></h1>
+              <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-[var(--theme-text)] uppercase font-serif italic">Kitchen <span className="text-blue-600">Feed</span></h1>
             </div>
           </div>
 

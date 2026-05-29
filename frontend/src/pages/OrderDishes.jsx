@@ -138,7 +138,7 @@ export default function OrderDishes() {
           <CheckCircle size={48} className="text-white" />
         </div>
         <h2 className="font-serif italic text-6xl font-bold mb-8 text-[var(--theme-text)] leading-tight">{t('order_authorized').split(' ')[0]} <span className="text-emerald-600">{t('order_authorized').split(' ').slice(1).join(' ')}</span></h2>
-        <p className="text-slate-400 dark:text-slate-500 text-xl mb-12 font-bold tracking-tight leading-relaxed">{t('transmission_authorized')}</p>
+        <p className="text-slate-400 dark:text-slate-500 text-xl mb-12 font-bold tracking-tight leading-relaxed">Add dishes to your order</p>
         
         <div className="bg-[var(--theme-accent)] rounded-[2.5rem] p-10 mb-12 space-y-6 border border-[var(--theme-border)] shadow-inner">
           {cart.map(i => (
@@ -314,7 +314,7 @@ export default function OrderDishes() {
               {filtered.length === 0 && (
                 <div className="col-span-full py-40 cloud-card text-center border-dashed border-2">
                   <Utensils size={80} className="mx-auto mb-8 text-slate-200" />
-                  <p className="text-3xl text-slate-300 font-black tracking-tighter uppercase">No culinary matches found</p>
+                  <p className="text-3xl text-slate-300 font-black tracking-tighter uppercase">No dishes found</p>
                 </div>
               )}
             </div>
@@ -355,7 +355,7 @@ export default function OrderDishes() {
             </div>
             <div>
               <h3 className="font-black text-xl md:text-2xl text-[var(--theme-text)] tracking-tighter">{t('cart_summary')}</h3>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Namaste! {t('pending')}</p>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{t('pending')}</p>
             </div>
           </div>
           {cart.length > 0 && <button onClick={() => setCart([])} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-colors p-2">Clear</button>}
@@ -401,7 +401,7 @@ export default function OrderDishes() {
               <div className="flex justify-between items-end">
                 <div>
                   <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">{t('bill_amount')}</p>
-                  <p className="text-[11px] md:text-sm font-black text-[var(--theme-text)] uppercase tracking-widest">Culinary Check</p>
+                  <p className="text-[11px] md:text-sm font-black text-[var(--theme-text)] uppercase tracking-widest">Order Summary</p>
                 </div>
                 <p className="text-4xl md:text-5xl font-black text-blue-600 font-serif tracking-tighter">₹{cartTotal}</p>
               </div>
@@ -417,7 +417,7 @@ export default function OrderDishes() {
                 )}
               </button>
               <p className="text-center text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-40 flex items-center justify-center gap-3">
-                 <Sparkles size={10} className="text-blue-600" /> Authorized Transmission
+                 <Sparkles size={10} className="text-blue-600" /> Place Order
               </p>
             </div>
           )}

@@ -66,9 +66,9 @@ export default function AdminLogin() {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-3 mb-6 px-4 py-1.5 bg-blue-600/10 rounded-full border border-blue-600/20">
                <Terminal size={14} className="text-blue-600" />
-               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600">Secure Protocol v2.4</span>
+               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600">Secure Login</span>
             </div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-[var(--theme-text)] mb-4 md:mb-6">Sovereign <span className="text-blue-600">Access</span></h1>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-[var(--theme-text)] mb-4 md:mb-6">Admin <span className="text-blue-600">Login</span></h1>
             <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] leading-loose max-w-[280px] md:max-w-[320px] mx-auto opacity-80">Encryption active. Authenticated session required to bridge to management deck.</p>
           </div>
 

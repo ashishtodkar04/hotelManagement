@@ -60,7 +60,7 @@ export default function Booking() {
       if (res.data.success) {
         navigate(`/payment/${res.data.id}`);
       } else {
-        setError(res.data.error || 'The requested transmission failed.');
+        setError(res.data.error || 'Booking failed. Please try again.');
       }
     } catch (err) {
       setError(err.response?.data?.error || 'A critical error occurred. Please refresh and retry.');
@@ -144,7 +144,7 @@ export default function Booking() {
             <div className="bg-blue-600/5 rounded-[2.5rem] p-6 md:p-10 border border-blue-600/10 flex items-start gap-6">
                <Info size={24} className="text-blue-600 shrink-0" />
                <p className="text-xs font-bold text-blue-600/80 leading-relaxed tracking-tight">
-                 Namaste! An advance deposit of ₹500 is required to secure your placement. This will be adjusted in your final bill.
+                 An advance payment of ₹500 is required to confirm your booking. This will be adjusted in your final bill.
                </p>
             </div>
           </div>
