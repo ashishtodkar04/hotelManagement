@@ -170,6 +170,7 @@ router.get('/bookings', requireAdmin, async (req, res) => {
                 )) AS remaining_due,
                 CASE WHEN b.user_id = 0 OR b.user_id IS NULL THEN 'Walk-In Guest'
                      ELSE COALESCE(u.name, u.username, 'Guest') END AS user_name,
+                u.phone AS user_phone, u.email AS user_email,
                 COALESCE(pay.method, 'Pending') AS payment_method,
                 COALESCE(orders.latest_order_status, 
                     CASE WHEN b.status = 'completed' THEN 'served' 
@@ -1157,12 +1158,12 @@ router.get('/stats', requireAdmin, async (req, res) => {
 router.get('/payments', requireAdmin, async (req, res) => {
     try {
         const [payments] = await db.execute(`
-            SELECT p.*, b.booking_ref, b.status as booking_status, u.name as user_name
+            SELECT p.*, b.booking_ref, b.status as booking_status, b.table_number, b.guests, b.booking_date, b.time_slot, u.name as user_name, u.phone as user_phone, u.email as user_email
             FROM payments p
             LEFT JOIN (
-                SELECT id, booking_ref, status, user_id FROM bookings
+                SELECT id, booking_ref, status, user_id, table_number, guests, booking_date, time_slot FROM bookings
                 UNION ALL
-                SELECT id, booking_ref, status, user_id FROM booking_history
+                SELECT id, booking_ref, status, user_id, table_number, guests, booking_date, time_slot FROM booking_history
             ) b ON p.booking_id = b.id
             LEFT JOIN users u ON b.user_id = u.id
             ORDER BY p.created_at DESC

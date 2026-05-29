@@ -112,6 +112,7 @@ export default function AdminDashboard() {
   const [analyticsTab, setAnalyticsTab] = useState('revenue');
   const [showAuditLedger, setShowAuditLedger] = useState(false);
   const [showSearchSuite, setShowSearchSuite] = useState(false);
+  const [ledgerFilter, setLedgerFilter] = useState('all');
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -443,6 +444,19 @@ export default function AdminDashboard() {
     { label: t('monitor_sync'), value: monitorStatus.active ? t('active') : t('offline'), color: monitorStatus.active ? 'text-emerald-500' : 'text-rose-500', icon: RefreshCw }
   ];
 
+  const filteredBookings = bookings.filter(b => {
+    if (ledgerFilter === 'pending_payment') {
+      return Number(b.remaining_due || 0) > 0;
+    }
+    if (ledgerFilter === 'seated') {
+      return b.booking_status === 'seated';
+    }
+    if (ledgerFilter === 'pending') {
+      return b.booking_status === 'pending';
+    }
+    return true;
+  });
+
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
@@ -622,9 +636,32 @@ export default function AdminDashboard() {
                     </div>
                     
                     {p.transaction_id && (
-                      <div className="mb-4 p-3 bg-[var(--theme-bg)] rounded-xl border border-[var(--theme-border)]">
+                      <div className="mb-3 p-3 bg-[var(--theme-bg)] rounded-xl border border-[var(--theme-border)]">
                         <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">UTR / Txn ID</div>
                         <div className="text-[10px] font-black text-blue-600 tracking-widest break-all">{p.transaction_id}</div>
+                      </div>
+                    )}
+
+                    {(p.user_phone || p.user_email || p.table_number) && (
+                      <div className="mb-4 p-3 bg-[var(--theme-accent)] rounded-xl border border-[var(--theme-border)] space-y-1 text-[9px] font-black tracking-wide text-slate-500">
+                        {p.user_phone && (
+                          <div className="flex justify-between">
+                            <span>PHONE:</span>
+                            <span className="text-[var(--theme-text)]">{p.user_phone}</span>
+                          </div>
+                        )}
+                        {p.user_email && (
+                          <div className="flex justify-between">
+                            <span>EMAIL:</span>
+                            <span className="text-[var(--theme-text)] truncate max-w-[150px]">{p.user_email}</span>
+                          </div>
+                        )}
+                        {p.table_number && (
+                          <div className="flex justify-between">
+                            <span>PLACEMENT:</span>
+                            <span className="text-blue-600">Table {p.table_number} ({p.guests} Guests)</span>
+                          </div>
+                        )}
                       </div>
                     )}
                     
@@ -662,6 +699,26 @@ export default function AdminDashboard() {
                   <h2 className="text-lg font-black text-[var(--theme-text)] tracking-tighter">{t('live_bookings')}</h2>
                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Active Bookings</p>
                 </div>
+                <div className="flex flex-wrap gap-1.5 bg-[var(--theme-bg)] p-1 rounded-xl border border-[var(--theme-border)]">
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'pending_payment', label: 'Awaiting Payment' },
+                    { id: 'seated', label: 'Seated' },
+                    { id: 'pending', label: 'Pending' }
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setLedgerFilter(opt.id)}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                        ledgerFilter === opt.id
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-[var(--theme-text)]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -676,13 +733,19 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--theme-border)]">
-                  {bookings.map((b) => {
+                  {filteredBookings.map((b) => {
                     const billAmount = Number(b.total_payable || 0);
                     const remainingDue = Number(b.remaining_due || 0);
                     return (
                       <tr key={b.id} className="hover:bg-blue-600/[0.01] transition-all group">
                         <td className="px-8 py-6">
                           <div className="font-black text-base mb-0.5 tracking-tight font-serif italic">{b.user_name}</div>
+                          {b.user_phone && (
+                            <div className="text-[9px] text-slate-400 font-bold tracking-tight">📞 {b.user_phone}</div>
+                          )}
+                          {b.user_email && (
+                            <div className="text-[9px] text-slate-400 font-bold tracking-tight mb-1.5">✉️ {b.user_email}</div>
+                          )}
                           {b.staff_name && (
                             <div className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                                <Sparkles size={8} /> Staff: {b.staff_name}
@@ -752,10 +815,10 @@ export default function AdminDashboard() {
                       </tr>
                     );
                   })}
-                  {bookings.length === 0 && (
+                  {filteredBookings.length === 0 && (
                     <tr>
                       <td colSpan={4} className="py-12 text-center opacity-40 text-xs uppercase tracking-widest font-black">
-                        No active bookings for today.
+                        No active bookings match this filter.
                       </td>
                     </tr>
                   )}
@@ -765,13 +828,19 @@ export default function AdminDashboard() {
 
             {/* Mobile Booking Cards */}
             <div className="md:hidden divide-y divide-[var(--theme-border)]">
-              {bookings.map((b) => {
+              {filteredBookings.map((b) => {
                 const remainingDue = Number(b.remaining_due || 0);
                 return (
                   <div key={b.id} className="p-6 space-y-4">
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="font-black text-lg tracking-tight font-serif italic">{b.user_name}</div>
+                        {b.user_phone && (
+                          <div className="text-[9px] text-slate-400 font-bold tracking-tight">📞 {b.user_phone}</div>
+                        )}
+                        {b.user_email && (
+                          <div className="text-[9px] text-slate-400 font-bold tracking-tight mb-1">✉️ {b.user_email}</div>
+                        )}
                         <div className="flex items-center gap-2 mt-1">
                           <span className={statusClass(b.booking_status)}>{t(b.booking_status).toUpperCase()}</span>
                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">T{b.table_number} / {b.guests} G</span>

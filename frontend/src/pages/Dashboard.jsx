@@ -134,21 +134,21 @@ function BookingCard({ booking, onRefresh, t }) {
               <div className="pt-10 border-t border-[var(--theme-border)] space-y-4">
                 <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                   <span>Subtotal + Tax - Disc</span>
-                  <span>₹{Number(booking.bill_amount || 0).toFixed(0)}</span>
+                  <span>₹{Number(booking.bill_amount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                   <span>{t('advance_paid')}</span>
-                  <span>-₹{Number(booking.adv_paid || 0).toFixed(0)}</span>
+                  <span>-₹{Number(booking.adv_paid || 0).toFixed(2)}</span>
                 </div>
                 {Number(booking.paid_amount || 0) > 0 && (
                   <div className="flex justify-between items-center text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
                     <span>Partially Paid</span>
-                    <span>-₹{Number(booking.paid_amount || 0).toFixed(0)}</span>
+                    <span>-₹{Number(booking.paid_amount || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-end border-t border-[var(--theme-border)] pt-4 mt-4">
                   <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">PAYING AMOUNT (DUE)</span>
-                  <span className="text-5xl font-black text-blue-600 font-serif tracking-tighter">₹{Number(booking.remaining_due || 0).toFixed(0)}</span>
+                  <span className="text-5xl font-black text-blue-600 font-serif tracking-tighter">₹{Number(booking.remaining_due || 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -176,7 +176,7 @@ function BookingCard({ booking, onRefresh, t }) {
             <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl group-hover/cash:rotate-12 transition-transform duration-700">💵</div>
             <div>
               <div className="text-2xl font-black text-blue-600 tracking-tighter mb-2">Counter Settlement Active</div>
-              <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight">Please pay <span className="text-[var(--theme-text)]">₹{Number(booking.remaining_due || 0).toFixed(0)}</span> at the front desk. Your booking will be completed after admin confirms.</p>
+              <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight">Please pay <span className="text-[var(--theme-text)]">₹{Number(booking.remaining_due || 0).toFixed(2)}</span> at the front desk. Your booking will be completed after admin confirms.</p>
             </div>
           </div>
         )}
