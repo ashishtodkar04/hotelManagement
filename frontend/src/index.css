@@ -119,57 +119,126 @@
   }
   .dark .ambient-bg::before { opacity: 1; }
 
-  /* ── Layer 2: SUN (light) / MOON (dark) — dead centre ── */
-  .ambient-bg::after {
-    content: '';
+  /* ── Layer 2: CELESTIAL BODIES (Page-Specific) ── */
+  .celestial-body {
     position: absolute;
     left: 50%; top: 50%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     transition: all 2.5s cubic-bezier(0.16, 1, 0.3, 1);
     will-change: transform, opacity;
+  }
 
-    /* ──── SUN ──── */
-    width:  65vmin;
-    height: 65vmin;
-    background: radial-gradient(circle at center,
-      #ffffff  0%,
-      #fffde7  5%,
-      #fff176  12%,
-      #ffee58  22%,
-      #fdd835  36%,
-      #f9a825  52%,
-      rgba(251,140, 0,.40) 68%,
-      rgba(230, 81, 0,.15) 82%,
-      transparent 100%
-    );
-    box-shadow:
-       0  0  95px  47px rgba(255,235, 59,.80),
-       0  0 190px  95px rgba(255,193,  7,.50),
-       0  0 320px 160px rgba(255,152,  0,.27),
-       0  0 550px 275px rgba(255,111,  0,.15);
-    filter: blur(3px);
+  /* Gas Giant (Home) */
+  .planet-gas-giant {
+    width: 60vmin; height: 60vmin;
+    background: radial-gradient(circle at 30% 30%, #38bdf8 0%, #1d4ed8 50%, #0f172a 100%);
+    box-shadow: 0 0 100px 30px rgba(56,189,248,0.4), inset -20px -20px 60px rgba(0,0,0,0.8), inset 15px 15px 30px rgba(255,255,255,0.4);
+    animation: sun-pulse 10s ease-in-out infinite alternate;
+  }
+  .celestial-ring {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 90vmin; height: 18vmin;
+    border: 12px solid rgba(147,197,253,0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    box-shadow: 0 0 40px rgba(147,197,253,0.2);
+    pointer-events: none;
+    animation: ring-float 10s ease-in-out infinite alternate;
+  }
+  @keyframes ring-float {
+    0% { transform: translate(-50%, -50%) rotate(-15deg) scale(0.98); }
+    100% { transform: translate(-50%, -50%) rotate(-13deg) scale(1.02); }
+  }
+
+  /* Lava Planet (Menu) */
+  .planet-lava {
+    width: 58vmin; height: 58vmin;
+    background: radial-gradient(circle at 35% 35%, #f97316 0%, #dc2626 40%, #7f1d1d 80%, #000000 100%);
+    box-shadow: 0 0 80px 20px rgba(249,115,22,0.35), inset -30px -30px 60px rgba(0,0,0,0.9), inset 10px 10px 20px rgba(253,186,116,0.3);
+    animation: sun-pulse 8s ease-in-out infinite alternate;
+  }
+
+  /* Ocean Planet (Booking) */
+  .planet-ocean {
+    width: 55vmin; height: 55vmin;
+    background: radial-gradient(circle at 30% 30%, #06b6d4 0%, #0284c7 45%, #075985 75%, #0f172a 100%);
+    box-shadow: 0 0 70px 20px rgba(6,182,212,0.3), inset -20px -20px 50px rgba(0,0,0,0.85), inset 15px 15px 25px rgba(255,255,255,0.4);
+    animation: sun-pulse 12s ease-in-out infinite alternate;
+  }
+  .space-cloud {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border-radius: 100px;
+    animation: float-cloud linear infinite;
+    pointer-events: none;
+  }
+  .space-cloud-1 {
+    width: 150px; height: 40px;
+    top: 25%; left: -200px;
+    animation-duration: 25s;
+  }
+  .space-cloud-2 {
+    width: 220px; height: 50px;
+    top: 60%; left: -300px;
+    animation-duration: 35s;
+    animation-delay: -10s;
+  }
+  @keyframes float-cloud {
+    0% { transform: translateX(-10%); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateX(110vw); opacity: 0; }
+  }
+
+  /* Eclipse Ring (Auth) */
+  .planet-eclipse {
+    width: 52vmin; height: 52vmin;
+    background: radial-gradient(circle at center, #020617 60%, #4f46e5 85%, #818cf8 100%);
+    box-shadow: 0 0 100px 30px rgba(79,70,229,0.5), inset 0 0 40px rgba(79,70,229,0.3);
+    animation: sun-pulse 6s ease-in-out infinite alternate;
+  }
+
+  /* Prosperity Sun (Dashboard) */
+  .planet-sun {
+    width: 60vmin; height: 60vmin;
+    background: radial-gradient(circle at center, #ffffff 0%, #fef08a 15%, #eab308 45%, #ca8a04 70%, transparent 100%);
+    box-shadow: 0 0 120px 40px rgba(234,179,8,0.55), 0 0 200px 80px rgba(202,138,4,0.25);
     animation: sun-pulse 9s ease-in-out infinite alternate;
   }
 
-  /* ──── MOON ──── */
-  .dark .ambient-bg::after {
-    width:  34vmin;
-    height: 34vmin;
-    background: radial-gradient(circle at 33% 30%,
-      #ffffff  0%,
-      #e8edf5 18%,
-      #94a3b8 52%,
-      #475569 78%,
-      #1e293b 100%
-    );
-    box-shadow:
-      inset -20px -20px 45px rgba(0,  0,  0,.72),
-      inset  14px  14px 38px rgba(255,255,255,.82),
-       0  0  55px  18px rgba(148,163,184,.28),
-       0  0 130px  55px rgba(100,116,139,.12);
-    filter: blur(0px);
-    animation: moon-float 14s ease-in-out infinite alternate;
+  /* Ancient Moon (History) */
+  .planet-ancient-moon {
+    width: 48vmin; height: 48vmin;
+    background: radial-gradient(circle at 33% 30%, #f1f5f9 0%, #cbd5e1 30%, #64748b 70%, #1e293b 100%);
+    box-shadow: inset -20px -20px 45px rgba(0,0,0,0.72), inset 14px 14px 38px rgba(255,255,255,0.82), 0 0 50px 10px rgba(148,163,184,0.15);
+    animation: sun-pulse 14s ease-in-out infinite alternate;
+  }
+
+  /* Cybernetic Shield Planet (Payment) */
+  .planet-neon-shield {
+    width: 54vmin; height: 54vmin;
+    background: radial-gradient(circle at 30% 30%, #22d3ee 0%, #0891b2 50%, #0c4a6e 85%, #020617 100%);
+    box-shadow: 0 0 90px 25px rgba(34,211,238,0.4), inset -20px -20px 50px rgba(0,0,0,0.9);
+    animation: sun-pulse 7s ease-in-out infinite alternate;
+  }
+
+  /* Cherry Nebula Planet (Order) */
+  .planet-nebula-cherry {
+    width: 56vmin; height: 56vmin;
+    background: radial-gradient(circle at 30% 30%, #f472b6 0%, #db2777 40%, #881337 80%, #000000 100%);
+    box-shadow: 0 0 85px 25px rgba(244,114,182,0.35), inset -25px -25px 55px rgba(0,0,0,0.85);
+    animation: sun-pulse 11s ease-in-out infinite alternate;
+  }
+
+  /* Admin Subtle */
+  .planet-admin-subtle {
+    width: 40vmin; height: 40vmin;
+    background: radial-gradient(circle at center, rgba(148,163,184,0.05) 0%, transparent 70%);
+    box-shadow: none;
+    opacity: 0.15;
   }
 
   /* ── Layer 3: nebula colour washes ── */

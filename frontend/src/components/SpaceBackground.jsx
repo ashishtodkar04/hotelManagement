@@ -1,13 +1,38 @@
+import { useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 
 /**
  * SpaceBackground — immersive 3-D space scene rendered globally behind all pages.
  * Contains: shooting stars, twinkling stars, floating asteroids, distant orbiting planets,
- * nebula wisps, moon craters.  All purely CSS-driven for performance.
+ * nebula wisps, moon craters. All purely CSS-driven for performance.
  */
 export default function SpaceBackground() {
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const location = useLocation();
+  const path = location.pathname;
+
+  let pageType = 'gas-giant';
+  if (path === '/') pageType = 'gas-giant';
+  else if (path.startsWith('/menu')) pageType = 'lava';
+  else if (path.startsWith('/booking')) pageType = 'ocean';
+  else if (path.startsWith('/auth')) pageType = 'eclipse';
+  else if (path.startsWith('/dashboard')) pageType = 'sun';
+  else if (path.startsWith('/history')) pageType = 'ancient-moon';
+  else if (path.startsWith('/payment')) pageType = 'neon-shield';
+  else if (path.startsWith('/order')) pageType = 'nebula-cherry';
+  else if (path.startsWith('/admin')) pageType = 'admin-subtle';
+
+  const planetClass = {
+    'gas-giant': 'planet-gas-giant',
+    'lava': 'planet-lava',
+    'ocean': 'planet-ocean',
+    'eclipse': 'planet-eclipse',
+    'sun': 'planet-sun',
+    'ancient-moon': 'planet-ancient-moon',
+    'neon-shield': 'planet-neon-shield',
+    'nebula-cherry': 'planet-nebula-cherry',
+    'admin-subtle': 'planet-admin-subtle'
+  }[pageType] || 'planet-gas-giant';
 
   return (
     <div className="ambient-bg" aria-hidden="true">
@@ -16,11 +41,11 @@ export default function SpaceBackground() {
       <div className="orb orb-2" />
       <div className="orb orb-3" />
 
-      {/* ── Shooting stars (Reduced for performance) ── */}
+      {/* ── Shooting stars ── */}
       <div className="shooting-star" style={{ top: '12%', left: '15%', animationDelay: '0s',   animationDuration: '6s' }} />
       <div className="shooting-star" style={{ top: '28%', left: '55%', animationDelay: '3s',   animationDuration: '8s' }} />
 
-      {/* ── Twinkling stars (Reduced for performance) ── */}
+      {/* ── Twinkling stars ── */}
       {[
         { top:'5%',  left:'8%',  s:3, d:'2.1s' },
         { top:'18%', left:'88%', s:4, d:'1.8s' },
@@ -50,14 +75,32 @@ export default function SpaceBackground() {
         <div className="orbit-planet orbit-planet-2" />
       </div>
 
-      {/* ── Nebula wisps / cosmic dust clouds ── */}
+      {/* ── Nebula wisps ── */}
       <div className="nebula-wisp nebula-wisp-1" />
       <div className="nebula-wisp nebula-wisp-2" />
       <div className="nebula-wisp nebula-wisp-3" />
 
-      {/* ── Moon craters (visible only in dark) ── */}
-      <div className="moon-crater" style={{ width: '4.5vmin', height: '4.5vmin', top: 'calc(50% - 8vmin)',  left: 'calc(50% - 3vmin)' }} />
-      <div className="moon-crater" style={{ width: '3vmin',   height: '3vmin',   top: 'calc(50% + 3vmin)',  left: 'calc(50% + 5vmin)' }} />
+      {/* ── CENTRAL CELESTIAL BODY ── */}
+      <div className={`celestial-body ${planetClass}`} />
+
+      {/* Gas Giant orbiting rings */}
+      {pageType === 'gas-giant' && <div className="celestial-ring" />}
+
+      {/* Floating Clouds for Ocean Planet */}
+      {pageType === 'ocean' && (
+        <>
+          <div className="space-cloud space-cloud-1" />
+          <div className="space-cloud space-cloud-2" />
+        </>
+      )}
+
+      {/* ── Moon craters (visible only for ancient moon page) ── */}
+      {pageType === 'ancient-moon' && (
+        <>
+          <div className="moon-crater" style={{ width: '4.5vmin', height: '4.5vmin', top: 'calc(50% - 8vmin)',  left: 'calc(50% - 3vmin)' }} />
+          <div className="moon-crater" style={{ width: '3vmin',   height: '3vmin',   top: 'calc(50% + 3vmin)',  left: 'calc(50% + 5vmin)' }} />
+        </>
+      )}
     </div>
   );
 }
