@@ -529,7 +529,8 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap gap-4 justify-start items-center">
           {[
             { to: "/admin/history", icon: History, label: "Archives" },
-            { to: "/admin/pos", icon: CreditCard, label: "Walk-in Terminal" },
+            { to: "/admin/pos", icon: TerminalSquare, label: "Walk-in Terminal" },
+            { to: "/admin/payments", icon: CreditCard, label: "Pending Payments" },
             { to: "/admin/menu", icon: Utensils, label: "Menu Manager" },
             { to: "/admin/warehouse", icon: Package, label: "Warehouse Assets" },
             { to: "/admin/chef", icon: ChefHat, label: "Kitchen Feed" },
@@ -599,92 +600,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Live Payment Tunnel */}
-        {payments.filter(p => p.status === 'pending').length > 0 && (
-          <div className="cloud-card p-8 border border-amber-500/20 bg-amber-500/[0.02] shadow-2xl relative overflow-hidden animate-fade-in">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 flex items-center gap-2">
-                  <Activity size={14} className="animate-pulse" /> Live Payment Tunnel
-                </h2>
-                <div className="text-2xl font-black tracking-tighter text-[var(--theme-text)]">
-                  Pending Authorization Queue
-                </div>
-              </div>
-              <span className="bg-amber-500/10 border border-amber-500/20 py-2 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest text-amber-500">
-                {payments.filter(p => p.status === 'pending').length} ACTIVE REQUESTS
-              </span>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {payments.filter(p => p.status === 'pending').map(p => {
-                const waitTime = Math.round((currentTime.getTime() - new Date(p.created_at).getTime()) / 60000);
-                return (
-                  <div key={p.id} className="glass p-6 border-amber-500/10 hover:border-amber-500/40 transition-all bg-[var(--theme-panel)] relative overflow-hidden group shadow-lg">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                           <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 text-[8px] font-black rounded uppercase tracking-tighter">REF: {p.booking_ref}</span>
-                           <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{waitTime > 0 ? `${waitTime}m ago` : 'just now'}</span>
-                        </div>
-                        <div className="text-lg font-black tracking-tight font-serif italic text-[var(--theme-text)]">{p.user_name || 'Guest'}</div>
-                      </div>
-                      <div className="text-right">
-                         <div className="text-xl font-black text-amber-500 font-serif tracking-tighter">₹{Number(p.amount).toLocaleString()}</div>
-                         <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{p.method}</div>
-                      </div>
-                    </div>
-                    
-                    {p.transaction_id && (
-                      <div className="mb-3 p-3 bg-[var(--theme-bg)] rounded-xl border border-[var(--theme-border)]">
-                        <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">UTR / Txn ID</div>
-                        <div className="text-[10px] font-black text-blue-600 tracking-widest break-all">{p.transaction_id}</div>
-                      </div>
-                    )}
-
-                    {(p.user_phone || p.user_email || p.table_number) && (
-                      <div className="mb-4 p-3 bg-[var(--theme-accent)] rounded-xl border border-[var(--theme-border)] space-y-1 text-[9px] font-black tracking-wide text-slate-500">
-                        {p.user_phone && (
-                          <div className="flex justify-between">
-                            <span>PHONE:</span>
-                            <span className="text-[var(--theme-text)]">{p.user_phone}</span>
-                          </div>
-                        )}
-                        {p.user_email && (
-                          <div className="flex justify-between">
-                            <span>EMAIL:</span>
-                            <span className="text-[var(--theme-text)] truncate max-w-[150px]">{p.user_email}</span>
-                          </div>
-                        )}
-                        {p.table_number && (
-                          <div className="flex justify-between">
-                            <span>PLACEMENT:</span>
-                            <span className="text-blue-600">Table {p.table_number} ({p.guests} Guests)</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="flex gap-3 pt-4 border-t border-[var(--theme-border)]">
-                      <button 
-                        onClick={() => verifyPayment(p.booking_id, 'approve')}
-                        className="flex-1 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest py-3 rounded-xl hover:bg-emerald-500 transition-all shadow-md active:scale-95"
-                      >
-                        APPROVE
-                      </button>
-                      <button 
-                        onClick={() => verifyPayment(p.booking_id, 'reject')}
-                        className="flex-1 bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[9px] font-black uppercase tracking-widest py-3 rounded-xl hover:bg-rose-500 hover:text-white transition-all active:scale-95"
-                      >
-                        REJECT
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* --- 4. REAL-TIME FLOOR OPERATIONS SECTION --- */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 lg:gap-12">

@@ -29,6 +29,7 @@ const InventoryWarehouse = lazy(() => import('./pages/Admin/InventoryWarehouse')
 const BookingHistory = lazy(() => import('./pages/Admin/BookingHistory'));
 const AdminChat = lazy(() => import('./pages/Admin/AdminChat'));
 const PrintBill = lazy(() => import('./pages/Admin/PrintBill'));
+const PendingPayments = lazy(() => import('./pages/Admin/PendingPayments'));
 
 import ChatWidget from './components/ChatWidget';
 import AdminChatNotificationManager from './components/AdminChatNotificationManager';
@@ -98,6 +99,7 @@ function AppContent() {
             <Route path="/admin/history"        element={<BookingHistory />} />
             <Route path="/admin/chat"           element={<AdminChat />} />
             <Route path="/admin/print/:bookingId" element={<PrintBill />} />
+            <Route path="/admin/payments"       element={<PendingPayments />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
