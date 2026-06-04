@@ -49,9 +49,10 @@ export default function Payment() {
     
     const handleUpdate = (data) => {
       if (Number(data.bookingId) === Number(bookingId)) {
-        const isFinal = booking?.status === 'awaiting_final_payment' || booking?.status === 'completed' || booking?.status === 'seated';
+        // Derive status from the event data directly to avoid stale closure
+        const isFinal = data.status === 'completed' || data.status === 'awaiting_final_payment';
         const targetStatus = isFinal ? 'completed' : 'confirmed';
-        if (data.status === targetStatus) {
+        if (data.status === targetStatus || data.status === 'completed' || data.status === 'confirmed') {
           setStep('verified');
           setTimerActive(false);
         }
@@ -63,7 +64,7 @@ export default function Payment() {
       socket.off('booking_update', handleUpdate);
       socket.disconnect();
     };
-  }, [bookingId, user, booking]);
+  }, [bookingId, user?.id]);
 
   useEffect(() => {
     if (!timerActive || step !== 'pay') return;
@@ -141,7 +142,7 @@ export default function Payment() {
   const handleSubmitUTR = async (e) => {
     e.preventDefault();
     if (!utr.trim() || utr.trim().length < 6) {
-      setError('Invalid booking ID.');
+      setError('Invalid UTR number. Must be at least 6 characters.');
       return;
     }
     setError(''); setSubmitting(true);

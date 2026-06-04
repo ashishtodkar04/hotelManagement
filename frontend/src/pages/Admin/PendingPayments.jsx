@@ -73,6 +73,7 @@ export default function PendingPayments() {
       if (data) setMonitorStatus(prev => ({ ...prev, ...data }));
     };
 
+    socket.connect();
     socket.on('booking_update', handleBookingUpdate);
     socket.on('monitor_update', handleMonitorUpdate);
 

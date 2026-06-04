@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import useStore from '../../store/useStore';
 import api from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
@@ -66,6 +66,7 @@ export default function AdminDashboard() {
   const { theme } = useTheme();
   const { lang, setLang, t } = useLanguage();
   const { name: HOTEL_NAME } = useHotel();
+  const navigate = useNavigate();
 
   const safeParse = (key, fallback = []) => {
     try {
@@ -193,7 +194,8 @@ export default function AdminDashboard() {
 
         localStorage.setItem('admin_tables', JSON.stringify(tr.data?.tables || []));
         localStorage.setItem('admin_bookings', JSON.stringify(br.data?.bookings || []));
-      } catch (err) {
+      } catch(err) {
+        if (err.response?.status === 401) { navigate('/admin/login'); return; }
         console.error(err);
       } finally {
         setLoading(false);
@@ -438,10 +440,10 @@ export default function AdminDashboard() {
       return Number(b.remaining_due || 0) > 0;
     }
     if (ledgerFilter === 'seated') {
-      return b.booking_status === 'seated';
+      return b.status === 'seated';
     }
     if (ledgerFilter === 'pending') {
-      return b.booking_status === 'pending';
+      return b.status === 'pending';
     }
     return true;
   });

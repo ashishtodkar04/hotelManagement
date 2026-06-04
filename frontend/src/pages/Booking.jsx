@@ -37,6 +37,7 @@ export default function Booking() {
           if (!isStillAvail) set('table', '');
         }
       } catch (err) {
+        if (err.response?.status === 401) navigate('/auth');
         console.error(err);
       } finally {
         setLoading(false);
@@ -45,11 +46,15 @@ export default function Booking() {
 
     const debounce = setTimeout(fetchAvailability, 300);
     return () => clearTimeout(debounce);
-  }, [form.date, form.time, form.table]);
+  }, [form.date, form.time]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) { navigate('/auth'); return; }
+    if (user.is_banned) {
+      setError('Your account has been suspended. Please contact the restaurant for assistance.');
+      return;
+    }
     if (!form.table) { 
       setError(t('select_table') || 'Please select your preferred placement from the floor plan.'); 
       return; 
@@ -249,7 +254,7 @@ export default function Booking() {
                 <div className="pt-8">
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={submitting || loading}
                     className="w-full btn-primary py-8 rounded-[2.5rem] shadow-2xl group/btn"
                   >
                     {submitting ? (

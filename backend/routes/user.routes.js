@@ -4,6 +4,7 @@ const db = require('../config/db');
 const { validate, schemas } = require('../middleware/validation');
 const { sendBookingConfirmation, sendRegistrationEmail } = require('../services/emailService');
 const { processIncomingPayment } = require('../services/paymentService');
+const { requireAdmin } = require('../middleware/auth');
 
 // ── Single source of truth for tax rate (18% GST) ──
 const TAX_RATE = 0.18;
@@ -203,6 +204,8 @@ router.post('/register', validateRegister, async (req, res) => {
             [name, username, email, phone, hashPassword, new Date()]
         );
 
+        // Send welcome email asynchronously
+        sendRegistrationEmail(email, name, '').catch(e => console.error('[EMAIL] Register email failed:', e.message));
         res.json({ success: true, message: 'Registration successful' });
     } catch (err) {
         console.error('Register Error:', err);
@@ -257,6 +260,9 @@ router.post('/api/google-login', async (req, res) => {
 router.post('/api/user/update-password', requireUser, async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ success: false, error: 'New password must be at least 6 characters.' });
+        }
         const userId = req.session.user.id;
 
         // 1. Verify current password
@@ -475,11 +481,11 @@ router.post('/booking', requireUser, validateBooking, async (req, res) => {
 
         await conn.commit();
         req.session.bookingId = bookingId;
-        req.io.emit('booking_update', { bookingId, status: 'pending' });
+        if (req.io) req.io.emit('booking_update', { bookingId, status: 'pending' });
         
         if (Array.isArray(cart) && cart.length > 0) {
             const { deductInventoryForOrders } = require('../services/inventoryService');
-            deductInventoryForOrders(cart.map(i => ({ dishId: i.id, quantity: i.qty })));
+            deductInventoryForOrders(cart.map(i => ({ dishId: i.id, quantity: i.qty }))).catch(e => console.error('[INVENTORY] Deduction failed:', e.message));
         }
 
         // ── Send booking confirmation email ──
@@ -572,7 +578,7 @@ router.get('/dashboard', async (req, res) => {
                 ) AS completed_count
             `, [userId, userId]);
             const completedCount = countRes[0]?.completed_count || 0;
-            if (completedCount > 10) {
+            if (completedCount >= 10) {
                 loyaltyBadge = true;
             }
         }
@@ -784,7 +790,7 @@ router.get('/api/booking/:id', requireUser, async (req, res) => {
 });
 
 // ================= PAYMENT =================
-router.post('/create-qr', async (req, res) => {
+router.post('/create-qr', requireUser, async (req, res) => {
     try {
         const { amount, bookingId, type } = req.body; // type: 'advance' | 'final'
 
@@ -1377,8 +1383,8 @@ const pendingPaymentsHandler = async (req, res) => {
     }
 };
 
-router.get('/api/sms-monitor/pending-payments', pendingPaymentsHandler);
-router.get('/api/admin/pending-payments', pendingPaymentsHandler);
+router.get('/api/sms-monitor/pending-payments', requireAdmin, pendingPaymentsHandler);
+router.get('/api/admin/pending-payments', requireAdmin, pendingPaymentsHandler);
 
 const verifyPaymentHandler = async (req, res) => {
     const conn = await db.getConnection();
@@ -1392,7 +1398,6 @@ const verifyPaymentHandler = async (req, res) => {
         );
         
         if (rows.length === 0) {
-            conn.release();
             return res.status(404).json({ error: 'Booking not found' });
         }
 
@@ -1406,7 +1411,7 @@ const verifyPaymentHandler = async (req, res) => {
         if (isFinalMode) {
             await conn.execute(
                 `UPDATE bookings SET final_payment_verified=?, status=?, paid_amount=? WHERE id=?`,
-                [isApproved ? 1 : 0, isApproved ? 'completed' : booking.status, isApproved ? (booking.final_bill_expected || 0) : 0, Number(bookingId)]
+                [isApproved ? 1 : 0, isApproved ? 'completed' : booking.status, isApproved ? parseFloat(((booking.adv_paid || 0) + (booking.final_bill_expected || 0)).toFixed(2)) : 0, Number(bookingId)]
             );
             if (isApproved) {
                 await conn.execute('UPDATE restaurant_tables SET status="available" WHERE table_name=?', [booking.table_number]);
@@ -1464,8 +1469,8 @@ const verifyPaymentHandler = async (req, res) => {
     }
 };
 
-router.post('/api/sms-monitor/verify-payment', verifyPaymentHandler);
-router.post('/api/user/verify-monitor-payment', verifyPaymentHandler);
+router.post('/api/sms-monitor/verify-payment', requireAdmin, verifyPaymentHandler);
+router.post('/api/user/verify-monitor-payment', requireAdmin, verifyPaymentHandler);
 
 // ── SMS Monitor — outgoing SMS gateway (no auth needed for Android app) ──
 router.get('/api/sms-monitor/outgoing-sms', async (req, res) => {

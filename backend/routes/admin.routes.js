@@ -523,7 +523,7 @@ router.post('/update-status', requireAdmin, validate(schemas.updateBookingStatus
                 else if (totalSpent > 15000) spentPercent = 0.05;
                 else if (totalSpent > 5000) spentPercent = 0.02;
 
-                let countPercent = completedCount > 10 ? 0.05 : 0.00;
+                let countPercent = completedCount >= 10 ? 0.05 : 0.00;
                 let maxPercent = Math.max(spentPercent, countPercent);
                 loyaltyDiscount = parseFloat((subtotal * maxPercent).toFixed(2));
             }
@@ -640,7 +640,7 @@ router.post('/checkout', requireAdmin, async (req, res) => {
             `, [userId, userId]);
             
             const completedCount = countRes[0]?.completed_count || 0;
-            if (completedCount > 10) {
+            if (completedCount >= 10) {
                 loyaltyBadge = true;
             }
 
@@ -667,7 +667,7 @@ router.post('/checkout', requireAdmin, async (req, res) => {
             }
 
             // Count-based loyalty: > 10 completed bookings gives automatic 5% off
-            let countPercent = completedCount > 10 ? 0.05 : 0.00;
+            let countPercent = completedCount >= 10 ? 0.05 : 0.00;
 
             // Choose the max percentage
             let maxPercent = Math.max(spentPercent, countPercent);
@@ -675,7 +675,7 @@ router.post('/checkout', requireAdmin, async (req, res) => {
             if (maxPercent === 0.10) {
                 loyaltyTier = 'Platinum (10%)';
             } else if (maxPercent === 0.05) {
-                loyaltyTier = completedCount > 10 ? 'Loyalty Tier (5%)' : 'Gold (5%)';
+                loyaltyTier = completedCount >= 10 ? 'Loyalty Tier (5%)' : 'Gold (5%)';
             } else if (maxPercent === 0.02) {
                 loyaltyTier = 'Silver (2%)';
             }
@@ -755,7 +755,7 @@ router.get('/checkout-preview/:id', requireAdmin, async (req, res) => {
             `, [userId, userId]);
             
             const completedCount = countRes[0]?.completed_count || 0;
-            if (completedCount > 10) {
+            if (completedCount >= 10) {
                 loyaltyBadge = true;
             }
 
@@ -776,13 +776,13 @@ router.get('/checkout-preview/:id', requireAdmin, async (req, res) => {
                 spentPercent = 0.02;
             }
 
-            let countPercent = completedCount > 10 ? 0.05 : 0.00;
+            let countPercent = completedCount >= 10 ? 0.05 : 0.00;
             let maxPercent = Math.max(spentPercent, countPercent);
 
             if (maxPercent === 0.10) {
                 loyaltyTier = 'Platinum (10%)';
             } else if (maxPercent === 0.05) {
-                loyaltyTier = completedCount > 10 ? 'Loyalty Tier (5%)' : 'Gold (5%)';
+                loyaltyTier = completedCount >= 10 ? 'Loyalty Tier (5%)' : 'Gold (5%)';
             } else if (maxPercent === 0.02) {
                 loyaltyTier = 'Silver (2%)';
             }
@@ -807,19 +807,25 @@ router.get('/checkout-preview/:id', requireAdmin, async (req, res) => {
 
 router.post('/pay-at-counter', requireAdmin, async (req, res) => {
     const { bookingId } = req.body;
+    const conn = await db.getConnection();
     try {
-        const [rows] = await db.execute(`
+        await conn.beginTransaction();
+
+        const [rows] = await conn.execute(`
             SELECT b.bill_amount, b.adv_paid, b.booking_ref, b.booking_date, b.time_slot, b.table_number, b.guests, u.email
             FROM bookings b 
             LEFT JOIN users u ON b.user_id = u.id
             WHERE b.id=?`, [Number(bookingId)]
         );
         
-        if (rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+        if (rows.length === 0) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Booking not found' });
+        }
         const booking = rows[0];
 
         // Calculate total target for this booking (including tax and discounts)
-        const [billing] = await db.execute(`
+        const [billing] = await conn.execute(`
             SELECT 
                 COALESCE(SUM(o.total_price), 0) as subtotal,
                 COALESCE(MAX(b.discount), 0) as discount,
@@ -836,7 +842,7 @@ router.post('/pay-at-counter', requireAdmin, async (req, res) => {
         // Calculate loyalty discount dynamically
         let loyaltyDiscount = 0;
         if (userId && userId !== 0) {
-            const [countRes] = await db.execute(`
+            const [countRes] = await conn.execute(`
                 SELECT (
                     SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'completed'
                 ) + (
@@ -845,7 +851,7 @@ router.post('/pay-at-counter', requireAdmin, async (req, res) => {
             `, [userId, userId]);
             const completedCount = countRes[0]?.completed_count || 0;
 
-            const [historyData] = await db.execute(`
+            const [historyData] = await conn.execute(`
                 SELECT CAST(COALESCE(SUM(bill_amount), 0) AS DECIMAL(10,2)) as total_spent
                 FROM booking_history
                 WHERE user_id = ? AND status = 'completed'`,
@@ -858,7 +864,7 @@ router.post('/pay-at-counter', requireAdmin, async (req, res) => {
             else if (totalSpent > 15000) spentPercent = 0.05;
             else if (totalSpent > 5000) spentPercent = 0.02;
 
-            let countPercent = completedCount > 10 ? 0.05 : 0.00;
+            let countPercent = completedCount >= 10 ? 0.05 : 0.00;
             let maxPercent = Math.max(spentPercent, countPercent);
             loyaltyDiscount = parseFloat((subtotal * maxPercent).toFixed(2));
         }
@@ -871,19 +877,21 @@ router.post('/pay-at-counter', requireAdmin, async (req, res) => {
         // When paying at counter, the remaining balance is paid as cash
         const remainingBalance = Math.max(0, totalToPay - Number(b.adv_paid));
 
-        await db.execute(
+        await conn.execute(
             'UPDATE bookings SET status = "completed", final_payment_verified = 1, paid_amount = ?, bill_amount = ?, discount = ? WHERE id = ?',
             [remainingBalance, totalToPay, specialDiscount, bookingId]
         );
 
         // ✅ Free the table
-        await db.execute('UPDATE restaurant_tables SET status="available" WHERE table_name=?', [booking.table_number]);
+        await conn.execute('UPDATE restaurant_tables SET status="available" WHERE table_name=?', [booking.table_number]);
+
+        await conn.commit();
 
         if (booking.email) {
             let pdfBuffer = null;
             try {
                 const { generateBillPDF } = require('../services/pdfService');
-                const [orders] = await db.execute(`
+                const [orders] = await conn.execute(`
                     SELECT o.id, d.name, d.price, o.quantity, o.total_price 
                     FROM orders o JOIN dishes d ON o.dish_id = d.id 
                     WHERE o.booking_id = ?
@@ -908,7 +916,10 @@ router.post('/pay-at-counter', requireAdmin, async (req, res) => {
 
         res.json({ success: true });
     } catch (err) {
+        await conn.rollback();
         res.status(500).json({ error: err.message });
+    } finally {
+        conn.release();
     }
 });
 
@@ -1205,12 +1216,11 @@ router.get('/search-customer', requireAdmin, async (req, res) => {
         let orders = [];
         const bIds = bookings.map(b => b.id);
         if (bIds.length > 0) {
-            const [orderRows] = await db.execute(`
-                SELECT o.*, d.name as dish_name
-                FROM orders o
-                JOIN dishes d ON o.dish_id = d.id
-                WHERE o.booking_id IN (${bIds.join(',')})
-            `);
+            const placeholders = bIds.map(() => '?').join(',');
+            const [orderRows] = await db.execute(
+                `SELECT o.*, d.name as dish_name FROM orders o JOIN dishes d ON o.dish_id = d.id WHERE o.booking_id IN (${placeholders})`,
+                bIds
+            );
             orders = orderRows;
         }
 

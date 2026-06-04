@@ -9,8 +9,10 @@ async function queueOutgoingSms(phoneNumber, message) {
     if (!phoneNumber || !message) return false;
 
     // Clean phone number (remove non-digits, ensure length)
-    const cleanedPhone = phoneNumber.replace(/\D/g, '');
+    let cleanedPhone = phoneNumber.replace(/\D/g, '');
     if (cleanedPhone.length < 10) return false;
+    // Normalize to E.164 format for Indian numbers
+    if (cleanedPhone.length === 10) cleanedPhone = '91' + cleanedPhone;
 
     try {
         await db.execute(
