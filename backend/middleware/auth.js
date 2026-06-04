@@ -13,4 +13,15 @@ function requireStaffOrAdmin(req, res, next) {
     return res.status(401).json({ success: false, error: 'Unauthorized: Staff or Admin access required' });
 }
 
-module.exports = { requireAdmin, requireStaffOrAdmin };
+const MONITOR_TOKEN = 'Bearer veripay-secure-handshake-token-2026';
+
+function requireMonitorToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    if (authHeader === MONITOR_TOKEN) {
+        return next();
+    }
+    return res.status(401).json({ success: false, error: 'Unauthorized: Monitor token required' });
+}
+
+module.exports = { requireAdmin, requireStaffOrAdmin, requireMonitorToken };
+

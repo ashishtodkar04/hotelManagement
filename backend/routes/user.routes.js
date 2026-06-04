@@ -4,7 +4,7 @@ const db = require('../config/db');
 const { validate, schemas } = require('../middleware/validation');
 const { sendBookingConfirmation, sendRegistrationEmail } = require('../services/emailService');
 const { processIncomingPayment } = require('../services/paymentService');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requireMonitorToken } = require('../middleware/auth');
 
 // ── Single source of truth for tax rate (18% GST) ──
 const TAX_RATE = 0.18;
@@ -534,7 +534,7 @@ router.get('/api/check-auth', async (req, res) => {
 
 router.get('/payment', (req, res) => res.json({ success: true, message: 'Payment endpoint' }));
 
-router.post('/payment', async (req, res) => {
+router.post('/payment', requireAdmin, async (req, res) => {
 /**
  * SmsHeadlessTask — Professional Real-Time Transmission Engine.
  * Android HeadlessJS wakes the JS engine to process incoming SMS even with
@@ -879,7 +879,7 @@ router.post('/api/submit-payment', requireUser, async (req, res) => {
 });
 
 // ================= APP METRICS =================
-router.get('/api/daily-stats', async (req, res) => {
+router.get('/api/daily-stats', requireMonitorToken, async (req, res) => {
     try {
         const [rows] = await db.execute(`
             SELECT 
@@ -917,11 +917,11 @@ const handleHeartbeat = (req, res) => {
     res.json({ success: true, timestamp: lastMonitorHeartbeat });
 };
 
-router.post('/api/monitor-heartbeat', handleHeartbeat);
-router.get('/api/monitor-heartbeat', handleHeartbeat);
+router.post('/api/monitor-heartbeat', requireMonitorToken, handleHeartbeat);
+router.get('/api/monitor-heartbeat', requireMonitorToken, handleHeartbeat);
 router.get('/heartbeat', handleHeartbeat); // Fallback for simple pings
 
-router.get('/api/monitor-status', (req, res) => {
+router.get('/api/monitor-status', requireAdmin, (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     const now = Date.now();
     const diff = lastMonitorHeartbeat ? (now - lastMonitorHeartbeat) : 999999;
@@ -954,7 +954,7 @@ router.get('/api/monitor-status', (req, res) => {
 
 // ================= SMS AUTO-VERIFY (REAL-TIME TUNNEL) =================
 // Called by the Android companion app when it detects a bank SMS
-router.post('/api/sms-verify', async (req, res) => {
+router.post('/api/sms-verify', requireMonitorToken, async (req, res) => {
     const appVersion = req.headers['x-app'] || 'unknown';
     lastMonitorHeartbeat = Date.now(); 
     
@@ -1383,7 +1383,7 @@ const pendingPaymentsHandler = async (req, res) => {
     }
 };
 
-router.get('/api/sms-monitor/pending-payments', requireAdmin, pendingPaymentsHandler);
+router.get('/api/sms-monitor/pending-payments', requireMonitorToken, pendingPaymentsHandler);
 router.get('/api/admin/pending-payments', requireAdmin, pendingPaymentsHandler);
 
 const verifyPaymentHandler = async (req, res) => {
@@ -1469,11 +1469,11 @@ const verifyPaymentHandler = async (req, res) => {
     }
 };
 
-router.post('/api/sms-monitor/verify-payment', requireAdmin, verifyPaymentHandler);
+router.post('/api/sms-monitor/verify-payment', requireMonitorToken, verifyPaymentHandler);
 router.post('/api/user/verify-monitor-payment', requireAdmin, verifyPaymentHandler);
 
 // ── SMS Monitor — outgoing SMS gateway (no auth needed for Android app) ──
-router.get('/api/sms-monitor/outgoing-sms', async (req, res) => {
+router.get('/api/sms-monitor/outgoing-sms', requireMonitorToken, async (req, res) => {
     try {
         const [smsList] = await db.execute('SELECT * FROM outgoing_sms WHERE status = "pending" ORDER BY created_at ASC LIMIT 10');
         res.json({ success: true, sms: smsList });
@@ -1482,7 +1482,7 @@ router.get('/api/sms-monitor/outgoing-sms', async (req, res) => {
     }
 });
 
-router.post('/api/sms-monitor/outgoing-sms/:id/sent', async (req, res) => {
+router.post('/api/sms-monitor/outgoing-sms/:id/sent', requireMonitorToken, async (req, res) => {
     try {
         await db.execute('UPDATE outgoing_sms SET status = "sent" WHERE id = ?', [req.params.id]);
         res.json({ success: true });

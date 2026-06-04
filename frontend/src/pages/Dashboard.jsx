@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import useStore from '../store/useStore';
 import api from '../services/api';
@@ -245,21 +245,22 @@ export default function Dashboard() {
     }
   };
 
+  const fetchDashboardData = useCallback(() => {
+    if (!user) return;
+    api.get('/dashboard').then(r => {
+      if (r.data.success) {
+        const bks = r.data.bookings.map(b => ({
+          ...b,
+          orders: (r.data.ordersByBooking || {})[b.id] || [],
+        }));
+        setBookings(bks.sort((a, b) => b.id - a.id));
+        setLoyaltyBadge(r.data.loyaltyBadge || false);
+      }
+    }).catch(console.error).finally(() => setLoading(false));
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
-
-    const fetchDashboardData = () => {
-      api.get('/dashboard').then(r => {
-        if (r.data.success) {
-          const bks = r.data.bookings.map(b => ({
-            ...b,
-            orders: (r.data.ordersByBooking || {})[b.id] || [],
-          }));
-          setBookings(bks.sort((a, b) => b.id - a.id));
-          setLoyaltyBadge(r.data.loyaltyBadge || false);
-        }
-      }).catch(console.error).finally(() => setLoading(false));
-    };
 
     fetchDashboardData();
 
@@ -272,8 +273,9 @@ export default function Dashboard() {
     return () => {
       socket.off('booking_update', fetchDashboardData);
       socket.off('order_update', fetchDashboardData);
+      socket.disconnect();
     };
-  }, [user]);
+  }, [user, fetchDashboardData]);
 
   if (!user) return <Navigate to="/auth" />;
 
@@ -524,7 +526,7 @@ export default function Dashboard() {
               <div className="space-y-12">
                 <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.6em] ml-8">Live Reservations</h2>
                 <div className="space-y-10">
-                   {active.map(b => <BookingCard key={b.id} booking={b} onRefresh={() => window.location.reload()} t={t} />)}
+                   {active.map(b => <BookingCard key={b.id} booking={b} onRefresh={fetchDashboardData} t={t} />)}
                 </div>
               </div>
             )}
@@ -532,7 +534,7 @@ export default function Dashboard() {
               <div className="space-y-12">
                 <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.6em] ml-8 opacity-40">Booking History</h2>
                 <div className="opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-1000 space-y-10">
-                  {past.map(b => <BookingCard key={b.id} booking={b} onRefresh={() => window.location.reload()} t={t} />)}
+                  {past.map(b => <BookingCard key={b.id} booking={b} onRefresh={fetchDashboardData} t={t} />)}
                 </div>
               </div>
             )}

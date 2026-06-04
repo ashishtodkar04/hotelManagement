@@ -77,7 +77,11 @@ export default function OrderDishes() {
             setCart(existingItems);
           }
         }
-      } catch {
+      } catch (err) {
+        if (err.response?.status === 401) {
+          navigate('/auth');
+          return;
+        }
         setError('System synchronization failed.');
       } finally {
         setLoading(false);
@@ -322,7 +326,7 @@ export default function OrderDishes() {
 
           {/* Cart Sidebar (Right) - Desktop */}
           <div className="hidden lg:block lg:col-span-4 sticky top-40 h-fit">
-             <CartContent />
+             <CartContent t={t} cart={cart} setCart={setCart} error={error} updateQty={updateQty} addToCart={addToCart} removeItem={removeItem} cartTotal={cartTotal} handlePlaceOrder={handlePlaceOrder} placing={placing} booking={booking} />
           </div>
 
           {/* Cart Drawer - Mobile */}
@@ -335,7 +339,7 @@ export default function OrderDishes() {
                   <button onClick={() => setShowCartMobile(false)} className="w-10 h-10 rounded-full bg-[var(--theme-panel)] flex items-center justify-center text-slate-400 hover:text-blue-600"><X size={20} /></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
-                  <CartContent />
+                  <CartContent t={t} cart={cart} setCart={setCart} error={error} updateQty={updateQty} addToCart={addToCart} removeItem={removeItem} cartTotal={cartTotal} handlePlaceOrder={handlePlaceOrder} placing={placing} booking={booking} />
                 </div>
               </div>
             </div>
@@ -344,85 +348,85 @@ export default function OrderDishes() {
       </div>
     </div>
   );
+}
 
-  function CartContent() {
-    return (
-      <div className="cloud-card flex flex-col overflow-hidden shadow-2xl border-2 border-blue-600/5 h-fit">
-        <div className="px-8 md:px-12 py-8 md:py-10 border-b border-[var(--theme-border)] bg-[var(--theme-accent)] flex items-center justify-between">
-          <div className="flex items-center gap-4 md:gap-6">
-            <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-              <ShoppingCart size={24} md:size={28} />
-            </div>
-            <div>
-              <h3 className="font-black text-xl md:text-2xl text-[var(--theme-text)] tracking-tighter">{t('cart_summary')}</h3>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{t('pending')}</p>
-            </div>
+function CartContent({ t, cart, setCart, error, updateQty, addToCart, removeItem, cartTotal, handlePlaceOrder, placing, booking }) {
+  return (
+    <div className="cloud-card flex flex-col overflow-hidden shadow-2xl border-2 border-blue-600/5 h-fit">
+      <div className="px-8 md:px-12 py-8 md:py-10 border-b border-[var(--theme-border)] bg-[var(--theme-accent)] flex items-center justify-between">
+        <div className="flex items-center gap-4 md:gap-6">
+          <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+            <ShoppingCart size={24} md:size={28} />
           </div>
-          {cart.length > 0 && <button onClick={() => setCart([])} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-colors p-2">Clear</button>}
+          <div>
+            <h3 className="font-black text-xl md:text-2xl text-[var(--theme-text)] tracking-tighter">{t('cart_summary')}</h3>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{t('pending')}</p>
+          </div>
         </div>
+        {cart.length > 0 && <button onClick={() => setCart([])} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-colors p-2">Clear</button>}
+      </div>
 
-        <div className="p-8 md:p-12 space-y-10 md:space-y-12">
-          {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-3xl p-6 md:p-8 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-center animate-shake">{error}</div>}
+      <div className="p-8 md:p-12 space-y-10 md:space-y-12">
+        {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-3xl p-6 md:p-8 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-center animate-shake">{error}</div>}
 
-          <div className="space-y-6 max-h-[45vh] overflow-y-auto pr-2 md:pr-4 custom-scroll">
-            {cart.length === 0 ? (
-              <div className="py-16 md:py-24 text-center opacity-30">
-                <div className="w-20 h-20 md:w-24 md:h-24 bg-[var(--theme-accent)] rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8">
-                  <ShoppingCart size={32} md:size={40} className="text-slate-400" />
-                </div>
-                <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Awaiting Selection</p>
+        <div className="space-y-6 max-h-[45vh] overflow-y-auto pr-2 md:pr-4 custom-scroll">
+          {cart.length === 0 ? (
+            <div className="py-16 md:py-24 text-center opacity-30">
+              <div className="w-20 h-20 md:w-24 md:h-24 bg-[var(--theme-accent)] rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8">
+                <ShoppingCart size={32} md:size={40} className="text-slate-400" />
               </div>
-            ) : cart.map(item => (
-              <div key={item.id} className="flex items-center gap-4 md:gap-8 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-[var(--theme-accent)] border border-[var(--theme-border)] group hover:bg-[var(--theme-panel)] transition-all duration-500 hover:shadow-xl">
-                <div className="flex-1 min-w-0">
-                  <div className="text-lg md:text-xl font-black text-[var(--theme-text)] group-hover:text-blue-600 transition-colors truncate font-serif tracking-tight">{item.name}</div>
-                  <div className="text-[9px] md:text-[10px] text-slate-400 font-black tracking-widest mt-2 uppercase">₹{item.price} UNIT</div>
-                </div>
-                <div className="flex items-center gap-4 md:gap-6">
-                  <div className="flex items-center gap-2 md:gap-4 bg-[var(--theme-input)] rounded-xl md:rounded-2xl p-1.5 md:p-2 border border-[var(--theme-border)]">
-                    <button onClick={() => updateQty(item.id, -1)} className="w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all">
-                      <Minus size={14} md:size={18} />
-                    </button>
-                    <span className="w-6 md:w-8 text-center text-base md:text-lg font-black">{item.qty}</span>
-                    <button onClick={() => addToCart(item)} className="w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-600/10 transition-all">
-                      <Plus size={14} md:size={18} />
-                    </button>
-                  </div>
-                  <button onClick={() => removeItem(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1 md:p-2">
-                    <Trash2 size={20} md:size={24} />
+              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Awaiting Selection</p>
+            </div>
+          ) : cart.map(item => (
+            <div key={item.id} className="flex items-center gap-4 md:gap-8 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-[var(--theme-accent)] border border-[var(--theme-border)] group hover:bg-[var(--theme-panel)] transition-all duration-500 hover:shadow-xl">
+              <div className="flex-1 min-w-0">
+                <div className="text-lg md:text-xl font-black text-[var(--theme-text)] group-hover:text-blue-600 transition-colors truncate font-serif tracking-tight">{item.name}</div>
+                <div className="text-[9px] md:text-[10px] text-slate-400 font-black tracking-widest mt-2 uppercase">₹{item.price} UNIT</div>
+              </div>
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="flex items-center gap-2 md:gap-4 bg-[var(--theme-input)] rounded-xl md:rounded-2xl p-1.5 md:p-2 border border-[var(--theme-border)]">
+                  <button onClick={() => updateQty(item.id, -1)} className="w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all">
+                    <Minus size={14} md:size={18} />
+                  </button>
+                  <span className="w-6 md:w-8 text-center text-base md:text-lg font-black">{item.qty}</span>
+                  <button onClick={() => addToCart(item)} className="w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-600/10 transition-all">
+                    <Plus size={14} md:size={18} />
                   </button>
                 </div>
+                <button onClick={() => removeItem(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1 md:p-2">
+                  <Trash2 size={20} md:size={24} />
+                </button>
               </div>
-            ))}
-          </div>
-
-          {cart.length > 0 && (
-            <div className="pt-8 md:pt-10 border-t border-[var(--theme-border)] space-y-8 md:space-y-10">
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">{t('bill_amount')}</p>
-                  <p className="text-[11px] md:text-sm font-black text-[var(--theme-text)] uppercase tracking-widest">Order Summary</p>
-                </div>
-                <p className="text-4xl md:text-5xl font-black text-blue-600 font-serif tracking-tighter">₹{cartTotal}</p>
-              </div>
-              <button
-                onClick={handlePlaceOrder}
-                disabled={placing}
-                className="w-full btn-primary py-6 md:py-8 rounded-[1.5rem] md:rounded-[2rem] shadow-2xl group/btn"
-              >
-                {placing ? (
-                  <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
-                ) : (
-                  <>{(['pending', 'confirmed'].includes(booking?.status) ? 'SYNC SELECTION' : t('authorize_session')).toUpperCase()} <CheckCircle size={24} className="group-hover/btn:scale-110 transition-transform" /></>
-                )}
-              </button>
-              <p className="text-center text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-40 flex items-center justify-center gap-3">
-                 <Sparkles size={10} className="text-blue-600" /> Place Order
-              </p>
             </div>
-          )}
+          ))}
         </div>
+
+        {cart.length > 0 && (
+          <div className="pt-8 md:pt-10 border-t border-[var(--theme-border)] space-y-8 md:space-y-10">
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">{t('bill_amount')}</p>
+                <p className="text-[11px] md:text-sm font-black text-[var(--theme-text)] uppercase tracking-widest">Order Summary</p>
+              </div>
+              <p className="text-4xl md:text-5xl font-black text-blue-600 font-serif tracking-tighter">₹{cartTotal}</p>
+            </div>
+            <button
+              onClick={handlePlaceOrder}
+              disabled={placing}
+              className="w-full btn-primary py-6 md:py-8 rounded-[1.5rem] md:rounded-[2rem] shadow-2xl group/btn"
+            >
+              {placing ? (
+                <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+              ) : (
+                <>{(['pending', 'confirmed'].includes(booking?.status) ? 'SYNC SELECTION' : t('authorize_session')).toUpperCase()} <CheckCircle size={24} className="group-hover/btn:scale-110 transition-transform" /></>
+              )}
+            </button>
+            <p className="text-center text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-40 flex items-center justify-center gap-3">
+               <Sparkles size={10} className="text-blue-600" /> Place Order
+            </p>
+          </div>
+        )}
       </div>
-    );
-  }
+    </div>
+  );
 }
