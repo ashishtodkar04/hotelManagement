@@ -225,7 +225,7 @@ export default function AdminChat() {
                 ref={scrollRef}
                 className="flex-1 overflow-y-auto p-12 space-y-8 custom-scroll relative z-10"
               >
-                {activeThread.messages.map((msg, i) => (
+                {activeThread.messages?.map((msg, i) => (
                   <div key={i} className={`flex flex-col ${msg.sender === 'admin' ? 'items-end' : 'items-start'}`}>
                     <div className={`max-w-[70%] p-6 rounded-[2rem] text-base font-bold shadow-sm relative ${
                       msg.sender === 'admin' 

@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+require('dotenv').config();
 const { HOTEL_NAME, HOTEL_TAGLINE, HOTEL_PHONE, HOTEL_YEAR } = require('../config/hotel');
 
 const transporter = nodemailer.createTransport({
