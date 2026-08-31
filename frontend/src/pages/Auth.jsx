@@ -1,255 +1,324 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Utensils, User, Mail, Lock, ArrowRight, Eye, EyeOff, ShieldCheck, Sparkles } from 'lucide-react';
-import { GoogleLogin } from '@react-oauth/google';
+import React, { useState } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import useStore from '../store/useStore';
-
 import api from '../services/api';
 import { useHotel } from '../hooks/useHotel';
-import { useLanguage } from '../context/LanguageContext';
-import { useTheme } from '../context/ThemeContext';
+import Footer from '../components/Footer';
+import { 
+  User, 
+  Mail, 
+  Lock, 
+  Phone, 
+  ChefHat, 
+  ArrowRight, 
+  ShieldCheck, 
+  Eye, 
+  EyeOff, 
+  AlertCircle,
+  CheckCircle2,
+  Sparkles
+} from 'lucide-react';
 
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [showPass, setShowPass] = useState(false);
-  const [form, setForm] = useState({ identifier: '', name: '', username: '', email: '', phone: '', password: '' });
-  const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login, setUser } = useStore();
-  const navigate = useNavigate();
-  const { t } = useLanguage();
-  const { theme } = useTheme();
+  const { login } = useStore();
   const { name: HOTEL_NAME } = useHotel();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectPath = searchParams.get('redirect') || '/';
 
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const [isRegister, setIsRegister] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const handleSubmit = async (e) => {
+  // Form State
+  const [formData, setFormData] = useState({
+    name: '',
+    username: '',
+    email: '',
+    phone: '',
+    identifier: '',
+    password: ''
+  });
+
+  const handleChange = (e) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setError(''); setInfo(''); setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!formData.identifier || !formData.password) {
+      setErrorMsg('Please enter your login username/email/phone and password.');
+      return;
+    }
+
     try {
-      if (isLogin) {
-        const res = await login(form.identifier, form.password);
-        if (res.success) navigate('/dashboard');
-        else setError(res.error || 'Login failed. Please check your email and password.');
+      setLoading(true);
+      const res = await login(formData.identifier, formData.password);
+      if (res.success) {
+        navigate(redirectPath);
       } else {
-        const res = await api.post('/register', form);
-        if (res.data.success) {
-          setIsLogin(true);
-          setInfo('Account created! You can now sign in.');
-          setForm(p => ({ ...p, identifier: form.email, password: '' }));
-        } else {
-          setError(res.data.error || 'Registration failed. Please try again.');
-        }
+        setErrorMsg(res.error || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Something went wrong. Please try again.');
+      console.error('Login error:', err);
+      setErrorMsg(err.response?.data?.error || 'Authentication server error.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    setLoading(true);
-    setError('');
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!formData.name || !formData.username || !formData.email || !formData.phone || !formData.password) {
+      setErrorMsg('Please complete all registration fields.');
+      return;
+    }
+
     try {
-      const res = await api.post('/api/google-login', { token: credentialResponse.credential });
+      setLoading(true);
+      const res = await api.post('/register', {
+        name: formData.name,
+        username: formData.username,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password
+      });
+
       if (res.data.success) {
-        setUser(res.data.user);
-        navigate('/dashboard');
+        setSuccessMsg('Registration successful! Logging you in...');
+        // Auto login
+        const loginRes = await login(formData.email, formData.password);
+        if (loginRes.success) {
+          setTimeout(() => navigate(redirectPath), 1000);
+        } else {
+          setIsRegister(false);
+        }
       } else {
-        setError(res.data.error || 'Google authentication failed.');
+        setErrorMsg(res.data.error || 'Registration failed.');
       }
     } catch (err) {
-      console.error(err);
-      setError('Google sign in failed. Please try again.');
+      console.error('Registration error:', err);
+      setErrorMsg(err.response?.data?.error || 'Registration server error.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-[var(--theme-bg)] relative overflow-hidden transition-colors duration-500">
-      <div className="absolute top-[-15%] right-[-15%] w-[60%] h-[60%] bg-blue-600/5 blur-[150px] rounded-full animate-pulse"></div>
-      <div className="absolute bottom-[-15%] left-[-15%] w-[60%] h-[60%] bg-indigo-600/5 blur-[150px] rounded-full"></div>
-
-      <div className="w-full max-w-[1400px] grid lg:grid-cols-2 cloud-card overflow-hidden shadow-2xl relative z-10 animate-fade-in">
-        <div className="hidden lg:flex flex-col justify-between p-16 xl:p-24 bg-slate-900 text-white relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/30 via-transparent to-indigo-600/10 pointer-events-none"></div>
-
-          <div className="relative z-10">
-            <Link to="/" className="flex items-center gap-5 mb-24 group">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-[1.5rem] md:rounded-[2rem] flex items-center justify-center shadow-2xl group-hover:rotate-12 transition-transform duration-700">
-                <Utensils size={24} className="text-white" />
-              </div>
-              <span className="font-serif font-bold text-4xl md:text-5xl tracking-tighter text-white">{HOTEL_NAME}</span>
-            </Link>
-
-            <div className="space-y-10">
-              <h2 className="font-serif italic text-5xl xl:text-7xl font-bold leading-[1.1] text-white tracking-tighter">
-                {isLogin ? 'Welcome back!' : 'Join us for a great dining experience.'}
-              </h2>
-              <p className="text-slate-400 text-xl xl:text-2xl leading-relaxed font-bold tracking-tight max-w-lg">
-                Manage your bookings, browse the menu, and enjoy great food.
-              </p>
+    <div className="min-h-screen bg-[#faf8f5] flex flex-col justify-between">
+      
+      {/* AUTH CONTAINER */}
+      <div className="py-16 px-4 sm:px-6 lg:px-8 flex-1 flex items-center justify-center">
+        
+        <div className="w-full max-w-md space-y-8">
+          
+          {/* Header Branding */}
+          <div className="text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl accent-gold-gradient text-slate-950 flex items-center justify-center mx-auto shadow-xl shadow-amber-500/20">
+              <ChefHat className="w-8 h-8" />
             </div>
+            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900">
+              {HOTEL_NAME} Guest Identity
+            </h1>
+            <p className="text-xs text-slate-500">
+              {isRegister ? 'Create your sovereign member account' : 'Sign in to access reservations & dining rewards'}
+            </p>
           </div>
 
-          <div className="relative z-10 space-y-6 pt-12">
-            {[
-              'Live Table Availability',
-              'Easy Payment Tracking',
-              'Full Menu Access'
-            ].map((f, i) => (
-              <div key={f} className="flex items-center gap-6 text-[11px] font-black uppercase tracking-[0.4em] text-slate-500 animate-fade-in" style={{ animationDelay: `${0.8 + (i * 0.2)}s` }}>
-                <div className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,1)]" />
-                {f}
+          {/* Card */}
+          <div className="luxury-card p-8 bg-white border-2 border-amber-200/80 shadow-2xl space-y-6">
+            
+            {/* Mode Switcher Tabs */}
+            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => { setIsRegister(false); setErrorMsg(''); setSuccessMsg(''); }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  !isRegister ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsRegister(true); setErrorMsg(''); setSuccessMsg(''); }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  isRegister ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Register
+              </button>
+            </div>
+
+            {/* Error / Success Feedback Banners */}
+            {errorMsg && (
+              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{errorMsg}</span>
               </div>
-            ))}
-          </div>
-        </div>
+            )}
 
-        <div className="p-8 md:p-16 lg:p-24 xl:p-32 relative">
-          <header className="mb-12 md:mb-16">
-            <h3 className="font-black text-4xl md:text-5xl text-[var(--theme-text)] mb-4 tracking-tighter">{isLogin ? t('login') : 'Create Account'}</h3>
-            <p className="text-slate-400 dark:text-slate-500 text-[10px] md:text-[11px] font-black uppercase tracking-[0.5em]">{isLogin ? 'Enter your details to sign in' : 'Fill in your details to get started'}</p>
-          </header>
+            {successMsg && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>{successMsg}</span>
+              </div>
+            )}
 
-          {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-3xl p-8 mb-12 text-[10px] font-black uppercase tracking-[0.2em] text-center animate-shake">{error}</div>}
-          {info && <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-3xl p-8 mb-12 text-[10px] font-black uppercase tracking-[0.2em] text-center">{info}</div>}
-
-          <form onSubmit={handleSubmit} className="space-y-12">
-            {isLogin ? (
-              <>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-4">Email or Username</label>
-                  <div className="relative group/field">
-                    <User size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 transition-colors" />
-                    <input type="text" placeholder="Email, username or phone" value={form.identifier} onChange={e => set('identifier', e.target.value)} className="w-full py-6 pl-20 pr-8 bg-[var(--theme-input)] border border-[var(--theme-border)] rounded-2xl outline-none" required />
+            {/* Login Form */}
+            {!isRegister ? (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Username, Email, or Phone
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      name="identifier"
+                      placeholder="e.g. john_doe or email@domain.com"
+                      value={formData.identifier}
+                      onChange={handleChange}
+                      className="w-full text-xs py-3 pl-10 pr-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500/20"
+                      required
+                    />
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-4">Password</label>
-                  <div className="relative group/field">
-                    <Lock size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 transition-colors" />
-                    <input type={showPass ? 'text' : 'password'} placeholder="••••••••" value={form.password} onChange={e => set('password', e.target.value)} className="w-full py-6 pl-20 pr-20 font-black tracking-widest bg-[var(--theme-input)] border border-[var(--theme-border)] rounded-2xl outline-none" required />
-                    <button type="button" onClick={() => setShowPass(o => !o)} className="absolute right-7 top-1/2 -translate-y-1/2 text-slate-300 hover:text-blue-600 transition-all p-2">
-                      {showPass ? <EyeOff size={22} /> : <Eye size={22} />}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Security Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full text-xs py-3 pl-10 pr-10 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500/20"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-              </>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full btn-gold !py-3.5 text-xs font-bold shadow-lg shadow-amber-600/20"
+                >
+                  {loading ? 'Authenticating...' : 'Sign In To Member Dashboard'}
+                </button>
+              </form>
             ) : (
-              <>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-4">Full Name</label>
-                  <div className="relative group/field">
-                    <User size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 transition-colors" />
-                    <input type="text" placeholder="Your Name" value={form.name} onChange={e => set('name', e.target.value)} className="w-full py-6 pl-20 pr-8 bg-[var(--theme-input)] border border-[var(--theme-border)] rounded-2xl outline-none" required />
-                  </div>
+              /* Register Form */
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="e.g. Lord Johnathan Vance"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full text-xs py-2.5 px-3.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500/20"
+                    required
+                  />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-4">Username</label>
-                    <input type="text" placeholder="Username" value={form.username} onChange={e => set('username', e.target.value)} className="w-full py-5 md:py-6 px-10 bg-[var(--theme-input)] border border-[var(--theme-border)] rounded-2xl outline-none" required />
-                  </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-4">Phone Number</label>
-                    <input type="tel" placeholder="Phone" value={form.phone} onChange={e => set('phone', e.target.value)} className="w-full py-5 md:py-6 px-10 font-black bg-[var(--theme-input)] border border-[var(--theme-border)] rounded-2xl outline-none" required />
-                  </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Username</label>
+                  <input
+                    type="text"
+                    name="username"
+                    placeholder="johnathanvance"
+                    value={formData.username}
+                    onChange={handleChange}
+                    className="w-full text-xs py-2.5 px-3.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500/20"
+                    required
+                  />
                 </div>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-4">Email Address</label>
-                  <div className="relative group/field">
-                    <Mail size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 transition-colors" />
-                    <input type="email" placeholder="your@email.com" value={form.email} onChange={e => set('email', e.target.value)} className="w-full py-6 pl-20 pr-8 bg-[var(--theme-input)] border border-[var(--theme-border)] rounded-2xl outline-none" required />
-                  </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="johnathan@domain.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full text-xs py-2.5 px-3.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500/20"
+                    required
+                  />
                 </div>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-4">Password</label>
-                  <div className="relative group/field">
-                    <Lock size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 transition-colors" />
-                    <input type={showPass ? 'text' : 'password'} placeholder="••••••••" value={form.password} onChange={e => set('password', e.target.value)} className="w-full py-6 pl-20 pr-8 font-black tracking-widest bg-[var(--theme-input)] border border-[var(--theme-border)] rounded-2xl outline-none" minLength="6" required />
-                  </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Phone</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="+91 98765 43210"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full text-xs py-2.5 px-3.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500/20"
+                    required
+                  />
                 </div>
-              </>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Create Password</label>
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder="At least 6 characters"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full text-xs py-2.5 px-3.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500/20"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full btn-gold !py-3.5 text-xs font-bold shadow-lg shadow-amber-600/20"
+                >
+                  {loading ? 'Registering...' : 'Create Sovereign Account'}
+                </button>
+              </form>
             )}
 
-            {/* BUTTON MOVED OUTSIDE TERNARY TO FIX BUG */}
-            <button type="submit" disabled={loading} className="w-full btn-primary py-8 rounded-[2.5rem] shadow-2xl mt-8 disabled:opacity-50 group/btn flex items-center justify-center gap-4">
-              {loading ? (
-                <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span className="font-black uppercase tracking-[0.2em]">
-                    {isLogin ? 'SIGN IN' : 'CREATE ACCOUNT'}
-                  </span>
-                  <ArrowRight size={24} className="group-hover/btn:translate-x-3 transition-transform" />
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="mt-16 pt-12 border-t border-[var(--theme-border)]">
-            <div className="flex items-center gap-6 mb-10">
-              <div className="h-px flex-1 bg-[var(--theme-border)]" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] px-4">Or continue with</span>
-              <div className="h-px flex-1 bg-[var(--theme-border)]" />
+            <div className="pt-4 border-t border-slate-100 text-center">
+              <Link to="/admin/login" className="text-[11px] text-slate-500 hover:text-amber-700 font-medium">
+                Are you an authorized staff member? <span className="font-bold text-slate-800 underline">Staff Portal Login →</span>
+              </Link>
             </div>
 
-            <div className="flex flex-col items-center gap-8">
-              <div className="w-full flex flex-col items-center justify-center min-h-[60px] relative">
-                {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={() => setError('Google Authentication Failed')}
-                    useOneTap
-                    theme={theme === 'dark' ? 'filled_black' : 'outline'}
-                    shape="pill"
-                    size="large"
-                    width="100%"
-                    text={isLogin ? 'signin_with' : 'signup_with'}
-                  />
-                ) : (
-                  <div className="text-[10px] font-black text-rose-500 uppercase tracking-widest border border-rose-500/20 bg-rose-500/5 px-8 py-4 rounded-2xl animate-pulse">
-                    Google Sign In Unavailable: Missing Client ID
-                  </div>
-                )}
-
-              </div>
-
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] text-center max-w-xs leading-relaxed opacity-60">
-                Sign in with your <span className="text-blue-600">Google account</span> for quick access.
-              </p>
-            </div>
           </div>
 
-          <footer className="mt-16 pt-12 border-t border-[var(--theme-border)] text-center">
-            <p className="text-base text-slate-400 dark:text-slate-600 font-bold tracking-tight">
-              {isLogin ? "Don't have an account? " : 'Already have an account? '}
-              <button type="button" onClick={() => { setIsLogin(o => !o); setError(''); setInfo(''); }} className="text-blue-600 font-black hover:underline transition-all uppercase tracking-[0.3em] text-[11px] ml-2">
-                {isLogin ? 'JOIN FREE' : 'SIGN IN'}
-              </button>
-            </p>
-
-            <div className="mt-12 flex flex-col items-center gap-8 border-t border-[var(--theme-border)] pt-8 opacity-60 hover:opacity-100 transition-opacity">
-              <div className="flex items-center gap-12">
-                <Link to="/admin/staff-login" className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 hover:text-blue-600 transition-all group">
-                  <User size={16} className="text-blue-600" /> STAFF LOGIN
-                </Link>
-                <div className="w-px h-4 bg-[var(--theme-border)]" />
-                <Link to="/admin/login" className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.5em] text-slate-400 hover:text-blue-600 transition-all group">
-                  <ShieldCheck size={16} /> ADMIN LOGIN
-                </Link>
-              </div>
-            </div>
-
-            <p className="mt-12 text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-30 flex items-center justify-center gap-3">
-              <span className="flex items-center gap-1"><Sparkles size={10} className="text-blue-600" /> Secured by {HOTEL_NAME}</span>
-            </p>
-          </footer>
         </div>
+
       </div>
+
+      <Footer />
+
     </div>
   );
 }

@@ -1,281 +1,403 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import useStore from '../store/useStore';
-import { useLanguage } from '../context/LanguageContext';
-import { Calendar, Clock, Users, ArrowRight, LayoutGrid, Info, Sparkles } from 'lucide-react';
+import { useHotel } from '../hooks/useHotel';
+import Footer from '../components/Footer';
+import { 
+  Calendar, 
+  Clock, 
+  Users, 
+  Armchair, 
+  CheckCircle2, 
+  AlertCircle, 
+  Utensils, 
+  ShieldCheck, 
+  Sparkles, 
+  ArrowRight, 
+  Info,
+  CreditCard
+} from 'lucide-react';
 
 export default function Booking() {
-  const [tables, setTables] = useState([]);
-  const [form, setForm] = useState({ 
-    date: new Date().toISOString().split('T')[0], 
-    time: '19:00', 
-    guests: 2, 
-    table: '', 
-    duration: 2 
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  
   const { user } = useStore();
-  const { t } = useLanguage();
+  const { name: HOTEL_NAME } = useHotel();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const initialDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const initialGuests = Number(searchParams.get('guests')) || 2;
+  const initialSlot = searchParams.get('slot') || '19:00';
 
-  // Fetch tables initially and when date/time changes
+  const [date, setDate] = useState(initialDate);
+  const [time, setTime] = useState(initialSlot);
+  const [guests, setGuests] = useState(initialGuests);
+  const [duration, setDuration] = useState(2);
+  const [selectedTable, setSelectedTable] = useState(null);
+
+  const [tables, setTables] = useState([]);
+  const [loadingTables, setLoadingTables] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Attached cart dishes from sessionStorage
+  const [attachedCart, setAttachedCart] = useState([]);
+
   useEffect(() => {
-    const fetchAvailability = async () => {
-      setLoading(true);
+    const saved = sessionStorage.getItem('selected_cart');
+    if (saved) {
       try {
-        const r = await api.get(`/booking?date=${form.date}&time=${form.time}`);
-        if (r.data.success) {
-          setTables(r.data.tables || []);
-          // Clear selected table if it's no longer available
-          const isStillAvail = r.data.tables.find(t => t.table_name === form.table && t.status !== 'occupied');
-          if (!isStillAvail) set('table', '');
-        }
-      } catch (err) {
-        if (err.response?.status === 401) navigate('/auth');
-        console.error(err);
-      } finally {
-        setLoading(false);
+        setAttachedCart(JSON.parse(saved));
+      } catch (e) {
+        console.warn('Failed to parse cart:', e);
       }
-    };
-
-    const debounce = setTimeout(fetchAvailability, 300);
-    return () => clearTimeout(debounce);
-  }, [form.date, form.time]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) { navigate('/auth'); return; }
-    if (user.is_banned) {
-      setError('Your account has been suspended. Please contact the restaurant for assistance.');
-      return;
     }
-    if (!form.table) { 
-      setError(t('select_table') || 'Please select your preferred placement from the floor plan.'); 
-      return; 
-    }
-    setError(''); setSubmitting(true);
+  }, []);
+
+  useEffect(() => {
+    fetchTables();
+  }, [date, time]);
+
+  const fetchTables = async () => {
     try {
-      const res = await api.post('/booking', form);
+      setLoadingTables(true);
+      const res = await api.get(`/booking?date=${date}&time=${time}`);
       if (res.data.success) {
-        navigate(`/payment/${res.data.id}`);
-      } else {
-        setError(res.data.error || 'Booking failed. Please try again.');
+        setTables(res.data.tables || []);
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'A critical error occurred. Please refresh and retry.');
+      console.error('Failed to load tables:', err);
+    } finally {
+      setLoadingTables(false);
+    }
+  };
+
+  // Advance Payment calculation: ₹200 per guest minimum
+  const advanceAmount = guests * 200;
+  const cartSubtotal = attachedCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+  const handleSubmitBooking = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!user) {
+      navigate('/auth?redirect=/booking');
+      return;
+    }
+
+    if (!selectedTable) {
+      setError('Please select a table from the floor layout below.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const payload = {
+        date,
+        time,
+        guests: Number(guests),
+        duration: Number(duration),
+        table: selectedTable.table_name,
+        adv_paid: advanceAmount,
+        cart: attachedCart
+      };
+
+      const res = await api.post('/booking', payload);
+      if (res.data.success && res.data.id) {
+        sessionStorage.removeItem('selected_cart');
+        navigate(`/payment/${res.data.id}`);
+      } else {
+        setError(res.data.error || 'Failed to complete table reservation.');
+      }
+    } catch (err) {
+      console.error('Booking submission error:', err);
+      setError(err.response?.data?.error || err.response?.data?.message || 'Server error occurred during reservation.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const available = tables.filter(t => t.status !== 'occupied');
-  const occupied  = tables.filter(t => t.status === 'occupied');
-
   return (
-    <div className="min-h-screen bg-[var(--theme-bg)] pt-40 pb-32 px-6 sm:px-12 transition-colors duration-500">
-      <div className="max-w-[1600px] mx-auto">
-        <header className="text-center mb-32 relative">
-          <div className="inline-flex items-center gap-3 bg-blue-600/10 text-blue-600 mb-8 py-3 px-8 rounded-full text-[10px] font-black uppercase tracking-[0.4em] border border-blue-600/20 shadow-xl animate-fade-in">
-             <LayoutGrid size={14} className="animate-pulse" /> {t('monitor_sync')}
+    <div className="min-h-screen bg-[#faf8f5]">
+      
+      {/* ── HERO BANNER ── */}
+      <section className="pt-12 pb-12 bg-gradient-to-b from-blue-900/10 via-blue-500/5 to-transparent">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-800 text-xs font-bold uppercase tracking-widest">
+            <Calendar className="w-4 h-4 text-blue-600" />
+            <span>Executive Table Reservations</span>
           </div>
-          <h1 className="font-serif italic text-7xl md:text-[10rem] font-bold mb-10 text-[var(--theme-text)] leading-[0.8] tracking-tighter animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            {t('booking_page_title').split(' ')[0]} <span className="text-blue-600">{t('booking_page_title').split(' ').slice(1).join(' ')}</span>
+          <h1 className="font-serif text-4xl sm:text-6xl font-bold text-slate-900">
+            Reserve Your <span className="accent-sapphire-text">Table & Dining Suite</span>
           </h1>
-          <p className="text-slate-400 dark:text-slate-500 text-xl md:text-2xl max-w-3xl mx-auto font-bold tracking-tight leading-relaxed animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            {t('booking_subtitle')}
+          <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+            Select your preferred dining date, guest count, and interactive table layout for a guaranteed luxury experience at {HOTEL_NAME}.
           </p>
-        </header>
+        </div>
+      </section>
 
-        <div className="grid lg:grid-cols-12 gap-20">
-          {/* Floor Plan (Left) */}
-          <div className="lg:col-span-5 space-y-12 animate-fade-in" style={{ animationDelay: '0.6s' }}>
-            <div className="flex items-center justify-between">
-               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] flex items-center gap-6">
-                {t('floor_architecture')}
-              </h3>
-              <div className="flex gap-4">
-                 <div className="flex items-center gap-2 text-[8px] font-black uppercase text-slate-400 tracking-widest"><div className="w-2 h-2 rounded-full bg-[var(--theme-panel)] border border-[var(--theme-border)]" /> {t('vacant')}</div>
-                 <div className="flex items-center gap-2 text-[8px] font-black uppercase text-blue-600 tracking-widest"><div className="w-2 h-2 rounded-full bg-blue-600" /> {t('selected')}</div>
-                 <div className="flex items-center gap-2 text-[8px] font-black uppercase text-rose-500 tracking-widest"><div className="w-2 h-2 rounded-full bg-rose-500/10 border border-rose-500/20" /> {t('occupied')}</div>
+      {/* ── MAIN RESERVATION FORM & FLOOR PLAN ── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+        
+        <form onSubmit={handleSubmitBooking} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          
+          {/* Left Column: Date & Details Selector */}
+          <div className="lg:col-span-7 space-y-8">
+            
+            {/* Step 1 Card: Date, Time & Guests */}
+            <div className="luxury-card p-6 sm:p-8 bg-white space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-xl accent-sapphire-gradient text-white flex items-center justify-center font-bold">
+                  1
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-xl text-slate-900">Reservation Preferences</h3>
+                  <p className="text-xs text-slate-500">Pick date, time slot, and attendance count</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-2">Reservation Date</label>
+                  <input
+                    type="date"
+                    value={date}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full text-xs py-3 px-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-2">Time Slot</label>
+                  <select
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full text-xs py-3 px-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="12:00">12:00 PM (Lunch)</option>
+                    <option value="13:30">01:30 PM (Lunch)</option>
+                    <option value="19:00">07:00 PM (Dinner)</option>
+                    <option value="20:30">08:30 PM (Dinner)</option>
+                    <option value="22:00">10:00 PM (Late Night)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-2">Total Guests</label>
+                  <select
+                    value={guests}
+                    onChange={(e) => setGuests(Number(e.target.value))}
+                    className="w-full text-xs py-3 px-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value={1}>1 Guest</option>
+                    <option value={2}>2 Guests (Couple)</option>
+                    <option value={4}>4 Guests (Family Table)</option>
+                    <option value={6}>6 Guests (Large Table)</option>
+                    <option value={8}>8+ Guests (VIP Room)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-2">Duration (Hours)</label>
+                  <select
+                    value={duration}
+                    onChange={(e) => setDuration(Number(e.target.value))}
+                    className="w-full text-xs py-3 px-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value={1}>1 Hour</option>
+                    <option value={2}>2 Hours (Standard)</option>
+                    <option value={3}>3 Hours (Relaxed Dining)</option>
+                  </select>
+                </div>
+
               </div>
             </div>
 
-            <div className="cloud-card p-10 min-h-[500px]">
-              {loading ? (
-                <div className="grid grid-cols-3 gap-6">
-                  {[...Array(12)].map((_, i) => <div key={i} className="bg-[var(--theme-accent)] rounded-[1.5rem] h-28 animate-pulse border border-[var(--theme-border)]" />)}
+            {/* Step 2 Card: Interactive Floor Plan Layout */}
+            <div className="luxury-card p-6 sm:p-8 bg-white space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl accent-sapphire-gradient text-white flex items-center justify-center font-bold">
+                    2
+                  </div>
+                  <div>
+                    <h3 className="font-serif font-bold text-xl text-slate-900">Select Available Table</h3>
+                    <p className="text-xs text-slate-500">Live floor status for selected slot</p>
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center gap-3 text-[11px] font-semibold">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Available
+                  </span>
+                  <span className="flex items-center gap-1.5 text-slate-400">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Occupied
+                  </span>
+                </div>
+              </div>
+
+              {loadingTables ? (
+                <div className="py-12 text-center text-slate-400 text-xs animate-pulse">
+                  Checking real-time table availability...
                 </div>
               ) : tables.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center py-20 opacity-30">
-                  <LayoutGrid size={64} className="mb-6" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Architectural state unavailable</p>
+                <div className="text-center py-8 text-slate-500 text-xs">
+                  No tables configured for this slot.
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                  {available.map(t_item => (
-                    <button
-                      key={t_item.id}
-                      type="button"
-                      onClick={() => set('table', t_item.table_name)}
-                      className={`rounded-[2rem] p-8 text-center transition-all border-2 flex flex-col items-center justify-center gap-2 group ${
-                        form.table === t_item.table_name
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-2xl shadow-blue-500/20 scale-105 z-10'
-                          : 'bg-[var(--theme-panel)] border-[var(--theme-border)] text-slate-400 hover:border-blue-600 hover:text-blue-600'
-                      }`}
-                    >
-                      <div className="text-3xl font-black font-serif tracking-tighter">{t_item.table_name}</div>
-                      <div className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 group-hover:opacity-100 transition-opacity">Cap: {t_item.capacity}</div>
-                    </button>
-                  ))}
-                  {occupied.map(t_item => (
-                    <div
-                      key={t_item.id}
-                      className="bg-rose-500/5 border-2 border-rose-500/10 text-rose-500/40 rounded-[2rem] p-8 text-center flex flex-col items-center justify-center gap-2 cursor-not-allowed"
-                    >
-                      <div className="text-3xl font-black font-serif tracking-tighter">{t_item.table_name}</div>
-                      <div className="text-[9px] font-black uppercase tracking-[0.2em]">{t('occupied')}</div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {tables.map((tbl) => {
+                    const isOccupied = tbl.status === 'occupied';
+                    const isTooSmall = Number(tbl.capacity) < guests;
+                    const isDisabled = isOccupied || isTooSmall;
+                    const isSelected = selectedTable?.id === tbl.id;
+
+                    return (
+                      <button
+                        key={tbl.id}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => setSelectedTable(tbl)}
+                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 relative ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-md ring-2 ring-blue-500/20'
+                            : isDisabled
+                            ? 'border-slate-200 bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed'
+                            : 'border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/50 text-slate-800'
+                        }`}
+                      >
+                        <Armchair className={`w-6 h-6 ${isSelected ? 'text-blue-600' : isDisabled ? 'text-slate-300' : 'text-emerald-600'}`} />
+                        <span className="font-bold text-xs">{tbl.table_name}</span>
+                        <span className="text-[10px] text-slate-500">Cap: {tbl.capacity} Guests</span>
+
+                        {isOccupied && (
+                          <span className="text-[9px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">Booked</span>
+                        )}
+                        {isTooSmall && !isOccupied && (
+                          <span className="text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">Small</span>
+                        )}
+                        {isSelected && (
+                          <CheckCircle2 className="w-4 h-4 text-blue-600 absolute top-2 right-2" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
+
             </div>
-            
-            <div className="bg-blue-600/5 rounded-[2.5rem] p-6 md:p-10 border border-blue-600/10 flex items-start gap-6">
-               <Info size={24} className="text-blue-600 shrink-0" />
-               <p className="text-xs font-bold text-blue-600/80 leading-relaxed tracking-tight">
-                 An advance payment of ₹500 is required to confirm your booking. This will be adjusted in your final bill.
-               </p>
-            </div>
+
           </div>
 
-          {/* Form Selection (Right) */}
-          <div className="lg:col-span-7 animate-fade-in" style={{ animationDelay: '0.8s' }}>
-            <div className="cloud-card p-6 sm:p-12 md:p-20 shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
-                <Calendar size={120} />
+          {/* Right Column: Checkout Summary Box */}
+          <div className="lg:col-span-5 space-y-6">
+            
+            <div className="luxury-card p-6 sm:p-8 bg-white sticky top-28 space-y-6 border-2 border-blue-200/80 shadow-xl">
+              
+              <div className="pb-4 border-b border-slate-100">
+                <h3 className="font-serif font-bold text-xl text-slate-900">Reservation Summary</h3>
+                <p className="text-xs text-slate-500">Review details before advance payment</p>
               </div>
 
               {error && (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-3xl p-8 mb-12 text-[10px] font-black uppercase tracking-[0.3em] text-center animate-shake">
-                  {error}
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{error}</span>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-4">{t('date_label')}</label>
-                    <div className="relative group/field">
-                      <Calendar size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 transition-colors" />
-                      <input
-                        type="date"
-                        value={form.date}
-                        onChange={e => set('date', e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
-                        required
-                        className="w-full py-6 pl-18 pr-8"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-4">{t('time_label')}</label>
-                    <div className="relative group/field">
-                      <Clock size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 transition-colors" />
-                      <input
-                        type="time"
-                        value={form.time}
-                        onChange={e => set('time', e.target.value)}
-                        required
-                        className="w-full py-6 pl-18 pr-8"
-                      />
-                    </div>
-                  </div>
+              {/* Detail Items */}
+              <div className="space-y-3 text-xs text-slate-600">
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Date & Slot:</span>
+                  <span className="font-bold text-slate-900">{date} ({time})</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Guest Count:</span>
+                  <span className="font-bold text-slate-900">{guests} Guests</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Selected Table:</span>
+                  <span className="font-bold text-blue-700">
+                    {selectedTable ? `${selectedTable.table_name} (Cap: ${selectedTable.capacity})` : 'None Selected'}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-4">{t('guest_label')}</label>
-                    <div className="relative group/field">
-                      <Users size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 transition-colors" />
-                      <input
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={form.guests}
-                        onChange={e => set('guests', e.target.value)}
-                        required
-                        className="w-full py-6 pl-18 pr-8 font-black"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-4">{t('duration_label')}</label>
-                    <div className="relative group/field">
-                       <Clock size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 pointer-events-none transition-colors" />
-                       <select 
-                        value={form.duration} 
-                        onChange={e => set('duration', e.target.value)}
-                        className="w-full py-6 pl-18 pr-8 appearance-none"
-                      >
-                        {[1, 2, 3, 4].map(h => (
-                          <option key={h} value={h}>{h} hour{h > 1 ? 's' : ''} Experience</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-4">{t('table_placement')}</label>
-                  <div className="relative group/field">
-                    <LayoutGrid size={22} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/field:text-blue-600 pointer-events-none transition-colors" />
-                    <select
-                      value={form.table}
-                      onChange={e => set('table', e.target.value)}
-                      required
-                      className="w-full py-6 pl-18 pr-8 appearance-none"
-                    >
-                      <option value="">{t('select_table') || 'Select placement…'}</option>
-                      {tables.map(t_opt => (
-                        <option key={t_opt.id} value={t_opt.table_name} disabled={t_opt.status === 'occupied'}>
-                          Table {t_opt.table_name} · Capacity: {t_opt.capacity} Max
-                        </option>
+                {attachedCart.length > 0 && (
+                  <div className="pt-2">
+                    <span className="font-bold text-slate-900 block mb-1">Attached Food Orders ({attachedCart.length}):</span>
+                    <div className="space-y-1 pl-2 text-[11px] bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                      {attachedCart.map((item) => (
+                        <div key={item.id} className="flex justify-between">
+                          <span>{item.qty}x {item.name}</span>
+                          <span className="font-semibold text-slate-800">₹{item.price * item.qty}</span>
+                        </div>
                       ))}
-                    </select>
+                      <div className="border-t border-slate-200 pt-1 flex justify-between font-bold text-slate-900">
+                        <span>Cart Total:</span>
+                        <span>₹{cartSubtotal}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="pt-8">
-                  <button
-                    type="submit"
-                    disabled={submitting || loading}
-                    className="w-full btn-primary py-8 rounded-[2.5rem] shadow-2xl group/btn"
-                  >
-                    {submitting ? (
-                      <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        {user ? t('authorize_booking') : t('login').toUpperCase()}
-                        <ArrowRight size={24} className="group-hover/btn:translate-x-3 transition-transform" />
-                      </>
-                    )}
-                  </button>
-                  <p className="text-center mt-8 text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-60 flex items-center justify-center gap-3">
-                    <Sparkles size={12} className="text-blue-600" />
-                    Safe & Secure Authorization
+                <div className="pt-3 border-t border-slate-200 space-y-2">
+                  <div className="flex justify-between text-sm font-bold text-slate-900">
+                    <span>Advance Payment Required:</span>
+                    <span className="text-blue-700 text-base">₹{advanceAmount}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-normal">
+                    *Advance amount will be fully credited against your final dining bill.
                   </p>
                 </div>
-              </form>
+              </div>
+
+              {/* Submit CTA */}
+              {!user ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/auth?redirect=/booking')}
+                  className="w-full btn-gold !py-3.5 text-xs font-bold"
+                >
+                  Log In To Complete Reservation
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={submitting || !selectedTable}
+                  className="w-full btn-sapphire !py-3.5 text-xs font-bold disabled:opacity-50"
+                >
+                  {submitting ? (
+                    <span>Processing Reservation...</span>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4" />
+                      <span>Proceed To Pay Advance (₹{advanceAmount})</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              <div className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5 pt-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Instant Auto-Verification via UPI Gateway</span>
+              </div>
+
             </div>
+
           </div>
-        </div>
-      </div>
+
+        </form>
+
+      </section>
+
+      {/* ── FOOTER ── */}
+      <Footer />
+
     </div>
   );
 }

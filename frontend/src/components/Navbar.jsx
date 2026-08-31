@@ -1,228 +1,288 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronRight, Moon, Sun, LogOut, Globe } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
-import { useTheme } from '../context/ThemeContext';
-import { useLanguage } from '../context/LanguageContext';
 import { useHotel } from '../hooks/useHotel';
+import { 
+  Utensils, 
+  Calendar, 
+  User, 
+  LogOut, 
+  ShieldCheck, 
+  Menu as MenuIcon, 
+  X, 
+  Clock, 
+  ChefHat, 
+  ChevronDown,
+  PhoneCall
+} from 'lucide-react';
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [showLang, setShowLang] = useState(false);
-  const { user, logout, isAdmin, isStaff, adminLogout, adminThreads } = useStore();
-  const { theme, toggleTheme } = useTheme();
-  const { lang, setLang, t } = useLanguage();
+  const { user, isAdmin, isStaff, logout, adminLogout } = useStore();
+  const { name: HOTEL_NAME, tagline, phone } = useHotel();
   const location = useLocation();
-  const { name: HOTEL_NAME } = useHotel();
+  const navigate = useNavigate();
 
-  const totalUnread = (isAdmin || isStaff) && adminThreads 
-    ? adminThreads.reduce((sum, t) => sum + (t.unreadCount || 0), 0) 
-    : 0;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const isActive = (path) => location.pathname === path;
 
-  let navLinks = [];
+  const handleLogout = async () => {
+    await logout();
+    setUserDropdownOpen(false);
+    navigate('/');
+  };
 
-  if (isAdmin || isStaff) {
-    // Professional Navigation Hub
-    if (isAdmin) {
-      navLinks.push({ name: 'Management', path: '/admin' });
-      navLinks.push({ name: 'Payments', path: '/admin/payments' });
-      navLinks.push({ name: 'Logistics', path: '/admin/inventory' });
-      navLinks.push({ name: 'Concierge Chat', path: '/admin/chat', showBadge: true });
-    }
-    navLinks.push({ name: 'Kitchen', path: '/admin/chef' });
-    navLinks.push({ name: 'Walk-in POS', path: '/admin/pos' });
-  } else {
-    // Guest Navigation
-    navLinks = [
-      { name: t('menu'), path: '/menu' },
-      { name: t('booking'), path: '/booking' },
-      { name: t('dashboard'), path: '/dashboard', auth: true },
-    ];
-  }
-
-  const languages = [
-    { code: 'en', label: 'English', short: 'EN' },
-    { code: 'hi', label: 'हिंदी', short: 'HI' },
-    { code: 'mr', label: 'मराठी', short: 'MR' }
-  ];
+  const handleAdminLogout = async () => {
+    await adminLogout();
+    navigate('/admin/login');
+  };
 
   return (
-    <nav className={`fixed top-0 left-0 w-full z-[100] transition-all duration-700 ${
-      scrolled 
-      ? 'py-4 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl shadow-xl' 
-      : 'py-8 bg-transparent'
-    }`}>
-      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-        {/* Logo */}
-        <Link to="/" className="group flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center transition-transform group-hover:rotate-12 duration-500 shadow-lg border border-[var(--theme-border)]">
-            <img src="/logo192.png" className="w-full h-full object-cover" alt="Lelite Logo" />
-          </div>
-          <span className="font-serif italic text-2xl font-bold tracking-tighter text-slate-900 dark:text-white">{HOTEL_NAME}</span>
-        </Link>
+    <header className="fixed top-0 left-0 right-0 z-50 glass-header transition-all duration-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
+          
+          {/* Logo & Hotel Brand */}
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-11 h-11 rounded-2xl accent-gold-gradient flex items-center justify-center text-white shadow-lg shadow-amber-600/20 group-hover:scale-105 transition-transform duration-300">
+              <ChefHat className="w-6 h-6" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-serif text-2xl font-bold tracking-tight text-slate-900 group-hover:text-amber-700 transition-colors">
+                {HOTEL_NAME}
+              </span>
+              <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-widest -mt-1">
+                {tagline || 'Luxury Hotel & Dining'}
+              </span>
+            </div>
+          </Link>
 
-        {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-10">
-          {navLinks.map(link => (
-            (!link.auth || user) && (
-              <Link 
-                key={link.path} 
-                to={link.path}
-                className={`text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-300 hover:text-blue-600 flex items-center gap-2 ${
-                  location.pathname === link.path ? 'text-blue-600' : 'text-slate-500'
+          {/* Desktop Navigation Links */}
+          <nav className="hidden md:flex items-center gap-1 bg-slate-100/70 p-1.5 rounded-2xl border border-slate-200/80 backdrop-blur-md">
+            <Link
+              to="/"
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                isActive('/') 
+                  ? 'bg-white text-amber-700 shadow-sm' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              Home
+            </Link>
+
+            <Link
+              to="/menu"
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                isActive('/menu') 
+                  ? 'bg-emerald-600 text-white shadow-sm' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Utensils className="w-4 h-4" />
+              Menu
+            </Link>
+
+            <Link
+              to="/booking"
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                isActive('/booking') 
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Table Booking
+            </Link>
+
+            {user && (
+              <Link
+                to="/history"
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                  isActive('/history') 
+                    ? 'bg-slate-900 text-white shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
                 }`}
               >
-                <span>{link.name}</span>
-                {link.showBadge && totalUnread > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-black animate-pulse shadow-md shadow-emerald-500/20">
-                    {totalUnread}
-                  </span>
-                )}
+                <Clock className="w-4 h-4" />
+                History & Orders
               </Link>
-            )
-          ))}
-          
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+            )}
+          </nav>
 
-          {/* Language Selector */}
-          <div className="relative">
-            <button 
-              onClick={() => setShowLang(!showLang)}
-              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-blue-600 transition-all"
+          {/* Right Action Bar */}
+          <div className="hidden lg:flex items-center gap-3">
+            
+            {/* Contact Quick Link */}
+            <a 
+              href={`tel:${phone}`} 
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 hover:text-amber-700 bg-amber-500/10 rounded-xl border border-amber-500/20 transition-colors"
             >
-              <Globe size={16} /> {languages.find(l => l.code === lang)?.short}
-            </button>
-            {showLang && (
-              <div className="absolute top-full right-0 mt-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden min-w-[120px] animate-fade-in">
-                {languages.map(l => (
-                  <button
-                    key={l.code}
-                    onClick={() => { setLang(l.code); setShowLang(false); }}
-                    className={`w-full px-6 py-4 text-left text-xs font-bold transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${
-                      lang === l.code ? 'text-blue-600 bg-blue-50/50 dark:bg-blue-900/10' : 'text-slate-500'
-                    }`}
-                  >
-                    {l.label}
-                  </button>
-                ))}
+              <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
+              <span>{phone}</span>
+            </a>
+
+            {/* Admin Desk / Admin Login Link */}
+            {(isAdmin || isStaff) ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/admin"
+                  className="btn-gold !py-2.5 !px-4 text-xs font-bold shadow-md shadow-amber-600/20"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Admin Desk</span>
+                </Link>
+                <button
+                  onClick={handleAdminLogout}
+                  title="Admin Logout"
+                  className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border border-slate-200"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
+            ) : (
+              <Link
+                to="/admin/login"
+                className="flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 px-3.5 py-2 rounded-xl transition-colors border border-amber-200 shadow-xs"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                <span>Admin Login</span>
+              </Link>
+            )}
+
+            {/* User Account / Auth Button */}
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors shadow-md shadow-slate-900/10"
+                >
+                  <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[11px]">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <span className="max-w-[100px] truncate">{user.name || 'Guest'}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+
+                {userDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-fade-in">
+                    <div className="px-4 py-2 border-b border-slate-100">
+                      <p className="text-xs font-bold text-slate-900 truncate">{user.name}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{user.email || user.username}</p>
+                    </div>
+                    <Link
+                      to="/history"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-amber-700"
+                    >
+                      <Clock className="w-4 h-4" />
+                      Booking History
+                    </Link>
+                    <div className="border-t border-slate-100 my-1"></div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left flex items-center gap-2 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Log Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                to="/auth"
+                className="btn-gold !py-2.5 !px-5 text-xs font-bold"
+              >
+                <User className="w-4 h-4" />
+                <span>Log In / Sign Up</span>
+              </Link>
             )}
           </div>
 
-          {/* Theme Toggle */}
-          <button 
-            onClick={toggleTheme}
-            className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-all active:scale-90"
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
-          {/* Auth Section */}
-          {(isAdmin || isStaff) ? (
-            <button 
-              onClick={() => { adminLogout(); setIsOpen(false); }}
-              className="btn-secondary py-3 px-6 text-[9px] gap-2 border-slate-200 dark:border-slate-800"
+          {/* Mobile Menu Button */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
             >
-              <LogOut size={14} /> {isAdmin ? 'LOGOUT ADMIN' : 'LOGOUT STAFF'}
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
             </button>
-          ) : user ? (
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={logout}
-                className="btn-secondary py-3 px-6 text-[9px] gap-2 border-slate-200 dark:border-slate-800"
-              >
-                <LogOut size={14} /> {t('logout').toUpperCase()}
-              </button>
-            </div>
-          ) : (
-            <Link to="/auth" className="btn-primary py-3 px-8 text-[9px]">
-              {t('login').toUpperCase()} <ChevronRight size={14} />
-            </Link>
-          )}
-        </div>
+          </div>
 
-        {/* Mobile Toggle */}
-        <div className="md:hidden flex items-center gap-4">
-           <button onClick={() => {
-             const nextLang = lang === 'en' ? 'hi' : lang === 'hi' ? 'mr' : 'en';
-             setLang(nextLang);
-           }} className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-black">
-             {languages.find(l => l.code === lang)?.short}
-           </button>
-           <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500">
-             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-           </button>
-           <button onClick={() => setIsOpen(!isOpen)} className="text-slate-900 dark:text-white">
-             {isOpen ? <X size={32} /> : <Menu size={32} />}
-           </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {isOpen && (
-        <div className="md:hidden fixed inset-0 z-[80] bg-white dark:bg-slate-900/95 backdrop-blur-3xl animate-fade-in flex flex-col pt-32 px-10 pb-20">
-          <div className="flex flex-col gap-6 flex-1 overflow-y-auto custom-scroll">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] mb-4">Navigational Hub</p>
-            {navLinks.map((link, idx) => (
-              (!link.auth || user) && (
-                <Link 
-                  key={link.path} 
-                  to={link.path} 
-                  onClick={() => setIsOpen(false)}
-                  className="text-5xl font-serif italic font-bold text-slate-900 dark:text-white flex items-center justify-between group py-2"
-                  style={{ animationDelay: `${idx * 0.1}s`, animation: 'fade-in 0.8s forwards' }}
-                >
-                  <span className="flex items-center gap-4">
-                    <span>{link.name}</span>
-                    {link.showBadge && totalUnread > 0 && (
-                      <span className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-md">
-                        {totalUnread}
-                      </span>
-                    )}
-                  </span>
-                  <ChevronRight className="text-blue-600 opacity-50" size={32} />
-                </Link>
-              )
-            ))}
-            
-            <div className="h-px w-full bg-slate-200 dark:bg-slate-800 my-8" />
-            
-            <div className="space-y-8">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Identity Control</p>
-              {user ? (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-6 p-6 bg-slate-100 dark:bg-slate-800 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-xl">
-                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-blue-500/30">{user.name?.[0]}</div>
-                    <div>
-                      <div className="font-black text-slate-900 dark:text-white text-lg tracking-tight">{user.name}</div>
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{user.email}</div>
-                    </div>
-                  </div>
-                  <button onClick={logout} className="w-full btn-secondary py-6 rounded-3xl text-xs flex items-center justify-center gap-4">
-                    <LogOut size={18} /> {t('logout').toUpperCase()}
-                  </button>
+      {/* Mobile Drawer Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-3 pb-6 space-y-3 animate-fade-in shadow-xl">
+          <nav className="flex flex-col space-y-1">
+            <Link
+              to="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`px-4 py-3 rounded-xl text-sm font-semibold ${isActive('/') ? 'bg-amber-50 text-amber-700' : 'text-slate-700'}`}
+            >
+              Home
+            </Link>
+            <Link
+              to="/menu"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`px-4 py-3 rounded-xl text-sm font-semibold ${isActive('/menu') ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700'}`}
+            >
+              Menu
+            </Link>
+            <Link
+              to="/booking"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`px-4 py-3 rounded-xl text-sm font-semibold ${isActive('/booking') ? 'bg-blue-50 text-blue-700' : 'text-slate-700'}`}
+            >
+              Table Booking
+            </Link>
+            {user && (
+              <Link
+                to="/history"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`px-4 py-3 rounded-xl text-sm font-semibold ${isActive('/history') ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
+              >
+                History & Orders
+              </Link>
+            )}
+          </nav>
+
+          <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+            {user ? (
+              <div className="pt-2 flex flex-col gap-2">
+                <div className="px-3 py-2 bg-slate-50 rounded-xl text-xs font-semibold text-slate-800">
+                  Signed in as: <span className="font-bold text-amber-700">{user.name}</span>
                 </div>
-              ) : (
-                <Link to="/auth" onClick={() => setIsOpen(false)} className="w-full btn-primary py-7 rounded-3xl text-sm flex items-center justify-center gap-4">
-                  ACCESS PORTAL <ChevronRight size={20} />
-                </Link>
-              )}
-            </div>
-          </div>
-          
-          <div className="mt-12 text-center">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.4em]">© {new Date().getFullYear()} {HOTEL_NAME} · Sovereign Experience</p>
+                <button
+                  onClick={handleLogout}
+                  className="w-full py-2.5 bg-rose-50 text-rose-600 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" /> Log Out
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/auth"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full btn-gold !py-3 text-center text-xs font-bold"
+              >
+                Log In / Sign Up
+              </Link>
+            )}
+
+            <Link
+              to="/admin/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full py-2.5 bg-amber-50 text-amber-800 rounded-xl text-xs font-bold text-center border border-amber-200 flex items-center justify-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4 text-amber-600" />
+              Admin Login
+            </Link>
           </div>
         </div>
       )}
-
-    </nav>
+    </header>
   );
 }

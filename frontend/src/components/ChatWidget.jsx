@@ -1,250 +1,207 @@
-import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, ShieldCheck, Sparkles, Minus, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import useStore from '../store/useStore';
 import socket from '../services/socket';
+import { useHotel } from '../hooks/useHotel';
+import { MessageSquare, X, Send, Bot, User, Sparkles, CheckCheck } from 'lucide-react';
 
 export default function ChatWidget() {
   const { user, chatMessages, addChatMessage, setChatHistory, markUserMessagesReadInStore } = useStore();
+  const { name: HOTEL_NAME } = useHotel();
   const [isOpen, setIsOpen] = useState(false);
-  const [message, setMessage] = useState('');
-  const [unread, setUnread] = useState(0);
-  const [isAdminTyping, setIsAdminTyping] = useState(false);
-  const scrollRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const messagesEndRef = useRef(null);
 
-  const isOpenRef = useRef(isOpen);
-  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
+  // Generate or read persistent guest ID
+  const guestId = user?.id ? String(user.id) : (localStorage.getItem('guest_chat_id') || `guest_${Math.random().toString(36).substring(2, 9)}`);
+  const guestName = user?.name || `Guest (${guestId.slice(-4)})`;
 
   useEffect(() => {
-    if (!user) return;
-
-    if (!socket.connected) socket.connect();
-
-    const onConnect = () => {
-      socket.emit('join_user', user.id);
-      socket.emit('mark_read', { userId: user.id, sender: 'user' });
-    };
-
-    socket.on('connect', onConnect);
-    if (socket.connected) {
-      onConnect();
+    if (!user?.id && !localStorage.getItem('guest_chat_id')) {
+      localStorage.setItem('guest_chat_id', guestId);
     }
+  }, [user, guestId]);
 
-    const handleMessage = (msg) => {
-      if (String(msg.userId) === String(user.id)) {
+  useEffect(() => {
+    socket.connect();
+    socket.emit('join_user', { userId: guestId, userName: guestName });
+
+    const handleReceiveMessage = (msg) => {
+      if (String(msg.userId) === String(guestId)) {
         addChatMessage(msg);
-        if (!isOpenRef.current) {
-          setUnread(prev => prev + 1);
-        } else {
-          // If open, notify admin that we read it immediately
-          socket.emit('mark_read', { userId: user.id, sender: 'user' });
+        if (!isOpen && msg.sender === 'admin') {
+          setUnreadCount(prev => prev + 1);
         }
       }
     };
 
-    const handleHistory = (history) => {
+    const handleChatHistory = (history) => {
       setChatHistory(history);
     };
 
-    const handleTyping = ({ userId, sender, isTyping }) => {
-      if (sender === 'admin' && String(userId) === String(user.id)) {
-        setIsAdminTyping(isTyping);
+    const handleTyping = (data) => {
+      if (String(data.userId) === String(guestId) && data.sender === 'admin') {
+        setIsTyping(data.isTyping);
       }
     };
 
-    const handleMessagesRead = ({ userId, sender }) => {
-      // If admin read our messages, update the local read status (blue ticks)
-      if (sender === 'admin' && String(userId) === String(user.id)) {
-        markUserMessagesReadInStore();
-      }
-    };
-
-    socket.on('receive_message', handleMessage);
-    socket.on('user_chat_history', handleHistory);
+    socket.on('receive_message', handleReceiveMessage);
+    socket.on('user_chat_history', handleChatHistory);
     socket.on('typing', handleTyping);
-    socket.on('messages_read', handleMessagesRead);
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('receive_message', handleMessage);
-      socket.off('user_chat_history', handleHistory);
+      socket.off('receive_message', handleReceiveMessage);
+      socket.off('user_chat_history', handleChatHistory);
       socket.off('typing', handleTyping);
-      socket.off('messages_read', handleMessagesRead);
-      
-      // Clean up typing indicators
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-  }, [user, addChatMessage, setChatHistory, markUserMessagesReadInStore]);
+  }, [guestId, guestName, isOpen, addChatMessage, setChatHistory]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (isOpen) {
+      setUnreadCount(0);
+      markUserMessagesReadInStore();
+      socket.emit('mark_read', { userId: guestId, sender: 'user' });
     }
-  }, [chatMessages, isOpen, isAdminTyping]);
+  }, [isOpen, guestId, markUserMessagesReadInStore]);
 
-  const handleInputChange = (e) => {
-    setMessage(e.target.value);
-    if (!user) return;
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isTyping, isOpen]);
 
-    socket.emit('typing', { userId: user.id, sender: 'user', isTyping: true });
-
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('typing', { userId: user.id, sender: 'user', isTyping: false });
-    }, 1500);
-  };
-
-  const handleSendMessage = (e) => {
+  const handleSend = (e) => {
     e.preventDefault();
-    if (!message.trim() || !user) return;
+    if (!inputText.trim()) return;
 
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    socket.emit('typing', { userId: user.id, sender: 'user', isTyping: false });
-
-    const msgData = {
-      userId: user.id,
-      userName: user.name,
-      message: message.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      is_read: 0
+    const payload = {
+      userId: guestId,
+      userName: guestName,
+      message: inputText.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    socket.emit('user_message', msgData);
-    setMessage('');
+    socket.emit('user_message', payload);
+    setInputText('');
   };
-
-  const toggleChat = () => {
-    const nextOpen = !isOpen;
-    setIsOpen(nextOpen);
-    if (nextOpen) {
-      setUnread(0);
-      socket.emit('mark_read', { userId: user.id, sender: 'user' });
-    }
-  };
-
-  if (!user) return null;
 
   return (
-    <div className="fixed bottom-8 right-8 z-[1000] flex flex-col items-end gap-6">
-      {/* Chat Window */}
+    <div className="fixed bottom-6 right-6 z-50">
+      
+      {/* Floating Toggle Button */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="relative bg-amber-600 hover:bg-amber-700 text-white p-4 rounded-full shadow-2xl shadow-amber-600/40 transition-all duration-300 transform hover:scale-110 flex items-center justify-center border-2 border-white"
+        >
+          <MessageSquare className="w-6 h-6" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+              {unreadCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Chat Box Drawer */}
       {isOpen && (
-        <div className="w-[350px] md:w-[450px] h-[500px] md:h-[600px] glass flex flex-col shadow-2xl border border-white/20 animate-slide-up overflow-hidden rounded-[2.5rem]">
+        <div className="w-[360px] sm:w-[400px] h-[520px] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-fade-in">
+          
           {/* Header */}
-          <div className="p-8 bg-slate-900 text-white flex items-center justify-between relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-transparent pointer-events-none" />
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <ShieldCheck size={24} />
+          <div className="bg-gradient-to-r from-amber-600 to-amber-700 p-4 text-white flex items-center justify-between shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
+                <Bot className="w-5 h-5 text-amber-100" />
               </div>
               <div>
-                <h3 className="font-black text-lg tracking-tighter uppercase">Guest Support</h3>
-                <div className="flex items-center gap-2 text-[9px] font-bold text-emerald-400 uppercase tracking-widest">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  {isAdminTyping ? 'Concierge is typing...' : 'Staff Online'}
-                </div>
+                <h3 className="font-serif font-bold text-sm tracking-wide">{HOTEL_NAME} Concierge</h3>
+                <p className="text-[10px] text-amber-100/90 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Live Support Online
+                </p>
               </div>
             </div>
-            <button onClick={toggleChat} className="p-2 hover:bg-white/10 rounded-xl transition-all text-slate-400 relative z-10">
-              <Minus size={24} />
+            <button
+              onClick={() => setIsOpen(false)}
+              className="p-1.5 rounded-full hover:bg-white/20 transition-colors text-amber-100 hover:text-white"
+            >
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Messages */}
-          <div 
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto p-8 space-y-6 custom-scroll bg-[var(--theme-bg)]/50 backdrop-blur-md"
-          >
-            {chatMessages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center opacity-30 px-10">
-                <MessageSquare size={48} className="mb-6 text-blue-600" />
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed">
-                  Namaste! Initialize your inquiry below. Our staff is ready to assist.
+          {/* Messages Feed */}
+          <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/50 custom-scroll">
+            
+            {/* Greeting */}
+            <div className="bg-amber-50 border border-amber-200/60 p-3 rounded-2xl text-xs text-amber-900 shadow-sm flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold mb-0.5">Welcome to {HOTEL_NAME}!</p>
+                <p className="text-amber-800/90 text-[11px]">
+                  How may our executive team assist your dining or reservation experience today?
                 </p>
               </div>
-            ) : (
-              chatMessages.map((msg, i) => (
-                <div key={i} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`max-w-[80%] p-5 rounded-[1.5rem] text-sm font-bold shadow-sm relative ${
-                    msg.sender === 'user' 
-                    ? 'bg-blue-600 text-white rounded-tr-none' 
-                    : 'bg-[var(--theme-panel)] text-[var(--theme-text)] border border-[var(--theme-border)] rounded-tl-none'
-                  }`}>
-                    {msg.message}
+            </div>
 
-                    {/* Double Ticks for Guest messages */}
-                    {msg.sender === 'user' && (
-                      <div className="flex justify-end mt-1 px-1 -mr-2">
-                        {msg.is_read ? (
-                          <div className="flex -space-x-1 text-sky-300">
-                            <Check size={12} strokeWidth={3} />
-                            <Check size={12} strokeWidth={3} />
-                          </div>
-                        ) : (
-                          <div className="flex -space-x-1 text-white/55">
-                            <Check size={12} strokeWidth={3} />
-                            <Check size={12} strokeWidth={3} />
-                          </div>
-                        )}
-                      </div>
-                    )}
+            {chatMessages.map((msg, idx) => {
+              const isMe = msg.sender === 'user';
+              return (
+                <div
+                  key={msg.id || idx}
+                  className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] p-3 rounded-2xl text-xs shadow-sm ${
+                      isMe
+                        ? 'bg-amber-600 text-white rounded-br-none'
+                        : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'
+                    }`}
+                  >
+                    <p className="leading-relaxed">{msg.message}</p>
+                    <div
+                      className={`text-[9px] mt-1 flex items-center justify-end gap-1 ${
+                        isMe ? 'text-amber-200' : 'text-slate-400'
+                      }`}
+                    >
+                      <span>{msg.time}</span>
+                      {isMe && <CheckCheck className="w-3 h-3 text-amber-200" />}
+                    </div>
                   </div>
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-2 px-2">{msg.time}</span>
                 </div>
-              ))
-            )}
+              );
+            })}
 
-            {/* Admin typing indicator bubble */}
-            {isAdminTyping && (
-              <div className="flex flex-col items-start animate-pulse">
-                <div className="bg-[var(--theme-panel)] text-slate-400 border border-[var(--theme-border)] p-4 rounded-[1.5rem] rounded-tl-none text-xs font-bold shadow-sm flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
+            {isTyping && (
+              <div className="flex items-center gap-2 text-xs text-slate-400 italic bg-white p-2.5 rounded-2xl w-fit border border-slate-200">
+                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce"></span>
+                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                <span>Concierge is typing…</span>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <form onSubmit={handleSendMessage} className="p-6 bg-[var(--theme-panel)] border-t border-[var(--theme-border)]">
-            <div className="relative group">
-              <input 
-                type="text" 
-                placeholder="Type your query..."
-                value={message}
-                onChange={handleInputChange}
-                className="w-full bg-[var(--theme-input)] border border-[var(--theme-border)] rounded-2xl py-5 pl-8 pr-16 text-sm font-bold outline-none focus:ring-4 focus:ring-blue-600/10 transition-all"
-              />
-              <button 
-                type="submit"
-                disabled={!message.trim()}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center disabled:opacity-30 transition-all hover:scale-110 shadow-lg shadow-blue-600/20"
-              >
-                <Send size={20} />
-              </button>
-            </div>
-            <p className="text-center text-[8px] font-black text-slate-400 uppercase tracking-widest mt-4 opacity-30 flex items-center justify-center gap-2">
-              <Sparkles size={8} className="text-blue-600" /> Encrypted Transmission
-            </p>
+          {/* Input Box */}
+          <form onSubmit={handleSend} className="p-3 bg-white border-t border-slate-200 flex items-center gap-2">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Ask about table, menu, or payments…"
+              className="flex-1 text-xs py-2.5 px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+            />
+            <button
+              type="submit"
+              disabled={!inputText.trim()}
+              className="p-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-40 transition-all shadow-md shadow-amber-600/20"
+            >
+              <Send className="w-4 h-4" />
+            </button>
           </form>
+
         </div>
       )}
 
-      {/* Toggle Button */}
-      <button 
-        onClick={toggleChat}
-        className={`w-16 h-16 md:w-20 md:h-20 rounded-[2rem] flex items-center justify-center shadow-2xl transition-all duration-500 group relative ${
-          isOpen ? 'bg-slate-900 text-white rotate-90 scale-90' : 'bg-blue-600 text-white hover:scale-110'
-        }`}
-      >
-        {isOpen ? <X size={28} /> : <MessageSquare size={32} />}
-        
-        {unread > 0 && !isOpen && (
-          <div className="absolute -top-2 -right-2 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs font-black border-4 border-[var(--theme-bg)] animate-bounce">
-            {unread}
-          </div>
-        )}
-      </button>
     </div>
   );
 }

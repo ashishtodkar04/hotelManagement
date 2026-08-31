@@ -1,248 +1,412 @@
-import { useState, useEffect } from 'react';
-import { Leaf, Flame, Search, ChevronRight, Utensils, Star, Activity, Sparkles, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import api, { getApiUrl } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import useStore from '../store/useStore';
-
-const TABS = [
-  { id: 'Starter', label: 'Starter', emoji: '🥗', desc: 'Fresh beginnings to awaken your palate.' },
-  { id: 'Main Course', label: 'Main Course', emoji: '🍽️', desc: 'Hearty and delicious main dishes.' },
-  { id: 'Dessert', label: 'Dessert', emoji: '🍮', desc: 'A sweet and satisfying conclusion.' },
-  { id: 'Drinks', label: 'Drinks', emoji: '🥂', desc: 'Refreshing beverages and fine drinks.' },
-];
-
-function DishCard({ dish, tabEmoji }) {
-  return (
-    <div className={`cloud-card p-6 md:p-8 flex flex-col h-full group hover:-translate-y-3 hover:shadow-2xl transition-all duration-700 relative overflow-hidden ${!dish.is_available ? 'opacity-60 grayscale' : ''}`}>
-      {!dish.is_available && (
-        <div className="absolute top-4 left-4 z-30 bg-slate-800 text-slate-300 text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-slate-600">
-          OUT OF STOCK
-        </div>
-      )}
-      <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-125 transition-transform duration-700 pointer-events-none">
-         <Utensils size={100} />
-      </div>
-      
-      <div className="h-56 md:h-64 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden bg-[var(--theme-accent)] mb-6 md:mb-8 flex items-center justify-center relative border border-[var(--theme-border)]">
-        {dish.image ? (
-          <img
-            src={dish.image.startsWith('http') ? dish.image : `${getApiUrl()}${dish.image}`}
-            alt={dish.name}
-            className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-[2s] ease-out"
-          />
-        ) : (
-          <span className="text-5xl md:text-7xl group-hover:scale-110 transition-transform duration-700 opacity-20">{tabEmoji}</span>
-        )}
-        
-        {dish.type && (
-          <div className={`absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center shadow-2xl border border-white/20 backdrop-blur-xl ${dish.type === 'veg' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
-            {dish.type === 'veg' ? <Leaf size={18} className="text-white" /> : <Flame size={18} className="text-white" />}
-          </div>
-        )}
-        
-        <div className="absolute bottom-6 left-8 flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-          {[...Array(5)].map((_, i) => <Star key={i} size={14} className="fill-blue-600 text-blue-600" />)}
-        </div>
-      </div>
-
-      <div className="flex-1">
-        <div className="flex justify-between items-start mb-4">
-          <span className="text-[9px] md:text-[10px] uppercase tracking-[0.4em] text-blue-600 font-black">{dish.category}</span>
-          <span className="text-[var(--theme-text)] font-black text-2xl md:text-3xl font-serif tracking-tight group-hover:text-blue-600 transition-colors">₹{dish.price}</span>
-        </div>
-        <h3 className="font-black text-xl md:text-2xl mb-4 text-[var(--theme-text)] group-hover:text-blue-600 transition-colors leading-[1.1] tracking-tighter">{dish.name}</h3>
-        <p className="text-slate-400 dark:text-slate-500 text-xs md:text-sm leading-relaxed line-clamp-3 font-bold tracking-tight mb-8">
-          {dish.description || 'A delicious dish made with fresh ingredients and great care.'}
-        </p>
-      </div>
-
-      <div className="pt-6 md:pt-8 border-t border-[var(--theme-border)] mt-auto">
-        {dish.is_available ? (
-          <Link to="/booking" className="btn-primary w-full py-4 md:py-5 rounded-2xl shadow-xl text-[9px] md:text-[10px]">
-            SECURE RESERVATION <ChevronRight size={16} />
-          </Link>
-        ) : (
-          <button disabled className="w-full py-4 md:py-5 rounded-2xl bg-slate-500/20 text-slate-400 cursor-not-allowed font-black text-[9px] md:text-[10px] uppercase tracking-widest border border-slate-500/30">
-            CURRENTLY UNAVAILABLE
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
+import Footer from '../components/Footer';
+import { 
+  Utensils, 
+  Sparkles, 
+  Search, 
+  Filter, 
+  Flame, 
+  ShoppingCart, 
+  Plus, 
+  Minus, 
+  Check, 
+  ChefHat, 
+  ArrowRight,
+  RefreshCw,
+  AlertCircle
+} from 'lucide-react';
 
 export default function Menu() {
-  const [menu, setMenu] = useState({ Starter: [], 'Main Course': [], Dessert: [], Drinks: [] });
-  const [activeTab, setActiveTab] = useState('Starter');
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [recommendations, setRecommendations] = useState(null);
-  const [showRecs, setShowRecs] = useState(false);
   const { user } = useStore();
+  const navigate = useNavigate();
+
+  const [menuData, setMenuData] = useState({ Starter: [], 'Main Course': [], Dessert: [], Drinks: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dietFilter, setDietFilter] = useState('all'); // all | veg | nonveg
+  const [aiCombo, setAiCombo] = useState(null);
+  const [loadingAi, setLoadingAi] = useState(false);
+
+  // Cart for ordering
+  const [cart, setCart] = useState({});
 
   useEffect(() => {
-    setTimeout(() => {
+    fetchMenu();
+    fetchAiRecommendation();
+  }, []);
+
+  const fetchMenu = async () => {
+    try {
       setLoading(true);
-    }, 0);
-    api.get('/menu').then(r => {
-      if (r.data.success) {
-        const allDishes = { 
-          Starter: r.data.Starter || [], 
-          'Main Course': r.data['Main Course'] || [], 
-          Dessert: r.data.Dessert || [],
-          Drinks: r.data.Drinks || []
-        };
-        setMenu(allDishes);
-
-        // Fetch recommendations (even for guests)
-        api.get(`/api/recommend/${user?.id || 0}`).then(res => {
-          if (res.data?.combo) {
-            // Map names to full dish objects (Case-Insensitive)
-            const combo = res.data.combo;
-            const mapped = {};
-            const flatMenu = [...allDishes.Starter, ...allDishes['Main Course'], ...allDishes.Dessert, ...allDishes.Drinks];
-            
-            Object.keys(combo).forEach(cat => {
-              const dishObj = flatMenu.find(d => d.name.toLowerCase() === combo[cat].name.toLowerCase());
-              if (dishObj) {
-                mapped[cat] = { ...dishObj, reason: combo[cat].reason };
-              }
-            });
-            setRecommendations(mapped);
-          }
-        }).catch(() => {});
+      const res = await api.get('/menu');
+      if (res.data.success) {
+        setMenuData({
+          Starter: res.data.Starter || [],
+          'Main Course': res.data['Main Course'] || [],
+          Dessert: res.data.Dessert || [],
+          Drinks: res.data.Drinks || []
+        });
       }
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [user]);
+    } catch (err) {
+      console.error('Menu load error:', err);
+      setError('Failed to load gourmet menu. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const currentTab = TABS.find(t => t.id === activeTab);
-  const filtered = (menu[activeTab] || []).filter(d =>
-    d.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const fetchAiRecommendation = async () => {
+    try {
+      setLoadingAi(true);
+      const userId = user?.id || 0;
+      const res = await api.get(`/api/recommend/${userId}`);
+      if (res.data && res.data.combo) {
+        setAiCombo(res.data.combo);
+      }
+    } catch (err) {
+      console.warn('AI Recommendation error:', err);
+    } finally {
+      setLoadingAi(false);
+    }
+  };
+
+  const allDishes = [
+    ...(menuData.Starter || []),
+    ...(menuData['Main Course'] || []),
+    ...(menuData.Dessert || []),
+    ...(menuData.Drinks || [])
+  ];
+
+  const filteredDishes = allDishes.filter(dish => {
+    const matchesCategory = activeCategory === 'All' || dish.category === activeCategory;
+    const matchesSearch = dish.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (dish.description && dish.description.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesDiet = dietFilter === 'all' || 
+                        (dietFilter === 'veg' && dish.type === 'veg') || 
+                        (dietFilter === 'nonveg' && dish.type === 'non-veg');
+    return matchesCategory && matchesSearch && matchesDiet;
+  });
+
+  const updateCart = (dish, delta) => {
+    setCart(prev => {
+      const currentQty = prev[dish.id]?.qty || 0;
+      const newQty = currentQty + delta;
+      if (newQty <= 0) {
+        const copy = { ...prev };
+        delete copy[dish.id];
+        return copy;
+      }
+      return {
+        ...prev,
+        [dish.id]: {
+          id: dish.id,
+          name: dish.name,
+          price: dish.price,
+          qty: newQty,
+          type: dish.type
+        }
+      };
+    });
+  };
+
+  const cartItems = Object.values(cart);
+  const cartTotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+  const handleProceedToBooking = () => {
+    sessionStorage.setItem('selected_cart', JSON.stringify(cartItems));
+    navigate('/booking');
+  };
 
   return (
-    <div className="min-h-screen bg-[var(--theme-bg)] pt-24 md:pt-40 pb-32 px-4 md:px-8 transition-colors duration-500">
-      <div className="max-w-[1600px] mx-auto">
-        <header className="text-center mb-20 md:mb-32 px-4">
-          <div className="inline-flex items-center gap-3 bg-blue-600/10 text-blue-600 mb-8 py-3 px-6 md:px-8 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] border border-blue-600/20 shadow-xl animate-fade-in">
-             <Activity size={14} className="animate-pulse" /> Live Menu
+    <div className="min-h-screen bg-[#faf8f5]">
+      
+      {/* ── HEADER HERO ── */}
+      <section className="pt-12 pb-12 bg-gradient-to-b from-emerald-900/10 via-emerald-500/5 to-transparent">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 text-xs font-bold uppercase tracking-widest">
+            <Utensils className="w-4 h-4 text-emerald-600" />
+            <span>Botanical Gourmet Dining</span>
           </div>
-          <h1 className="font-serif italic text-5xl sm:text-6xl md:text-8xl lg:text-[10rem] font-bold mb-8 md:mb-10 text-[var(--theme-text)] leading-[0.9] md:leading-[0.8] tracking-tighter animate-fade-in" style={{ animationDelay: '0.2s' }}>The <span className="text-blue-600">Selection</span></h1>
-          <p className="text-slate-400 dark:text-slate-500 text-lg md:text-2xl max-w-3xl mx-auto font-bold tracking-tight leading-relaxed animate-fade-in px-4" style={{ animationDelay: '0.4s' }}>Seasonal heritage ingredients, avant-garde refinement, and an uncompromising dedication to sensory perfection.</p>
-        </header>
+          <h1 className="font-serif text-4xl sm:text-6xl font-bold text-slate-900">
+            Our Exquisite <span className="accent-emerald-text">Culinary Menu</span>
+          </h1>
+          <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+            Carefully curated dishes by world-class chefs utilizing farm-fresh organic ingredients, rich spices, and refined culinary art.
+          </p>
+        </div>
+      </section>
 
-        {/* ── RECOMMENDATIONS ── */}
-        {recommendations && Object.keys(recommendations).length > 0 && showRecs && (
-          <section className="mb-32 animate-fade-in" style={{ animationDelay: '0.5s' }}>
-            <div className="flex items-center gap-6 mb-12">
-              <div className="p-4 bg-blue-600 rounded-2xl shadow-lg shadow-blue-500/20">
-                <Sparkles size={24} className="text-white" />
+      {/* ── AI SMART RECOMMENDATION COMBO BAR ── */}
+      {aiCombo && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-2 mb-12">
+          <div className="luxury-card p-6 sm:p-8 bg-white border-2 border-emerald-300/80 shadow-xl rounded-3xl">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl accent-emerald-gradient text-white flex items-center justify-center font-bold shadow-md shadow-emerald-600/30">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-xl text-slate-900">
+                    AI Curated Smart Combo
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Personalized multi-course pairing powered by Python ML Engine
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-3xl font-black text-[var(--theme-text)] tracking-tight">Curated For You</h2>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-600">Personalized Pairing Experience</p>
-              </div>
-              <button onClick={() => setShowRecs(false)} className="ml-auto text-slate-400 hover:text-rose-500 transition-colors">
-                <X size={24} />
+              <button
+                onClick={fetchAiRecommendation}
+                className="btn-light-secondary text-xs"
+                disabled={loadingAi}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingAi ? 'animate-spin' : ''}`} />
+                <span>Refresh AI Pairing</span>
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {Object.keys(recommendations).map(cat => (
-                <div key={cat} className="relative group">
-                  <div className="absolute -top-3 left-8 z-20 px-4 py-1 bg-blue-600 text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg">
-                    {cat}
-                  </div>
-                  <DishCard dish={recommendations[cat]} tabEmoji={TABS.find(t => t.id.toLowerCase() === cat.toLowerCase() || t.id.toLowerCase().includes(cat.split(' ')[0].toLowerCase()))?.emoji || '✨'} />
-                  <div className="mt-4 px-6 py-3 bg-blue-600/5 border border-blue-600/10 rounded-2xl">
-                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-relaxed">
-                       {recommendations[cat].reason}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-12 md:gap-16 mb-24 animate-fade-in" style={{ animationDelay: '0.6s' }}>
-          <div className="flex flex-wrap justify-center lg:justify-start gap-4 md:gap-6">
-            {TABS.map(tab => (
+            {/* Recommended Combo Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+              
+              {['starter', 'main course', 'dessert', 'drinks'].map((catKey) => {
+                const item = aiCombo[catKey] || aiCombo[catKey.toLowerCase()];
+                if (!item) return null;
+                return (
+                  <div key={catKey} className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-md inline-block">
+                      {catKey}
+                    </span>
+                    <h4 className="font-serif font-bold text-slate-900 text-sm truncate">{item.name}</h4>
+                    <p className="text-[11px] text-slate-500 italic truncate">{item.reason || 'Chef recommended'}</p>
+                  </div>
+                );
+              })}
+
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── FILTER & CATEGORY TABS ── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10 space-y-6">
+        
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          
+          {/* Category Tabs */}
+          <div className="flex flex-wrap gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full md:w-auto">
+            {['All', 'Starter', 'Main Course', 'Dessert', 'Drinks'].map(cat => (
               <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setSearch(''); }}
-                className={`px-8 md:px-12 py-4 md:py-6 rounded-[2rem] md:rounded-[2.5rem] text-[10px] md:text-[11px] font-black tracking-[0.2em] md:tracking-[0.3em] transition-all duration-700 border-2 uppercase ${
-                  activeTab === tab.id 
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-2xl shadow-blue-500/20 scale-105' 
-                  : 'bg-[var(--theme-panel)] border-[var(--theme-border)] text-slate-400 hover:text-blue-600 hover:border-blue-600'
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                  activeCategory === cat
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                 }`}
               >
-                {tab.emoji} {tab.label}
+                {cat}
               </button>
             ))}
-            {recommendations && Object.keys(recommendations).length > 0 && (
-              <button
-                onClick={() => setShowRecs(!showRecs)}
-                className={`px-8 md:px-12 py-4 md:py-6 rounded-[2rem] md:rounded-[2.5rem] text-[10px] md:text-[11px] font-black tracking-[0.2em] md:tracking-[0.3em] transition-all duration-700 border-2 uppercase flex items-center gap-3 ${
-                  showRecs 
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-2xl shadow-blue-500/20 scale-105' 
-                  : 'bg-emerald-600/10 border-emerald-600/20 text-emerald-600 hover:bg-emerald-600 hover:text-white'
-                }`}
-              >
-                <Sparkles size={16} /> {showRecs ? 'Close Suggestions' : 'Personalised'}
-              </button>
-            )}
           </div>
 
-          <div className="relative w-full max-w-xl group">
-            <Search size={24} className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Search for a dish…" 
-              value={search} 
-              onChange={e => setSearch(e.target.value)} 
-              className="pl-20 pr-10 w-full text-xl py-6 bg-[var(--theme-panel)] border border-[var(--theme-border)] focus:ring-8 focus:ring-blue-600/5 transition-all rounded-[3rem] shadow-sm font-black outline-none tracking-tight" 
-            />
+          {/* Search & Diet Toggle */}
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            
+            {/* Search Box */}
+            <div className="relative flex-1 md:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search dish..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full text-xs py-2.5 pl-10 pr-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+
+            {/* Diet Filter Buttons */}
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                onClick={() => setDietFilter('all')}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors ${dietFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setDietFilter('veg')}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors ${dietFilter === 'veg' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500'}`}
+              >
+                Veg
+              </button>
+              <button
+                onClick={() => setDietFilter('nonveg')}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors ${dietFilter === 'nonveg' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500'}`}
+              >
+                Non-Veg
+              </button>
+            </div>
+
           </div>
+
         </div>
 
-        {!loading && (
-          <div className="flex items-center gap-10 mb-20 animate-fade-in" style={{ animationDelay: '0.7s' }}>
-            <div className="h-px flex-1 bg-[var(--theme-border)]" />
-            <div className="text-center">
-               <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.5em] mb-2">
-                Archives: <span className="text-blue-600">{filtered.length}</span> {currentTab?.label}
-              </p>
-              <p className="text-[9px] font-bold text-slate-300 dark:text-slate-600 italic tracking-widest">{currentTab?.desc}</p>
-            </div>
-            <div className="h-px flex-1 bg-[var(--theme-border)]" />
+      </section>
+
+      {/* ── DISH CATALOG GRID ── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24">
+        
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[1, 2, 3, 4, 5, 6].map(n => (
+              <div key={n} className="luxury-card p-4 space-y-4 animate-pulse">
+                <div className="h-48 bg-slate-200 rounded-2xl" />
+                <div className="h-6 bg-slate-200 rounded-md w-3/4" />
+                <div className="h-4 bg-slate-200 rounded-md w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-16 bg-rose-50 rounded-3xl border border-rose-200 max-w-xl mx-auto">
+            <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-3" />
+            <p className="text-rose-800 font-bold text-sm">{error}</p>
+            <button onClick={fetchMenu} className="btn-emerald mt-4 text-xs">Try Reloading</button>
+          </div>
+        ) : filteredDishes.length === 0 ? (
+          <div className="text-center py-16 bg-slate-50 rounded-3xl border border-slate-200 max-w-xl mx-auto">
+            <Utensils className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <h3 className="font-serif font-bold text-slate-800 text-lg">No dishes found</h3>
+            <p className="text-xs text-slate-500 mt-1">Try adjusting your search query or filters.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredDishes.map((dish) => {
+              const qty = cart[dish.id]?.qty || 0;
+              const isVeg = dish.type === 'veg';
+
+              return (
+                <div key={dish.id} className="luxury-card overflow-hidden flex flex-col justify-between group">
+                  <div>
+                    {/* Image */}
+                    <div className="h-52 overflow-hidden relative">
+                      <img 
+                        src={dish.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'} 
+                        alt={dish.name} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'; }}
+                      />
+                      
+                      {/* Veg / Non-Veg badge */}
+                      <span className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-md ${
+                        isVeg ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                      }`}>
+                        {isVeg ? 'Veg' : 'Non-Veg'}
+                      </span>
+
+                      {!dish.is_available && (
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
+                          <span className="bg-rose-600 text-white text-xs font-bold px-4 py-1.5 rounded-full">
+                            Sold Out Today
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-6 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-serif text-xl font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                          {dish.name}
+                        </h3>
+                        <span className="font-bold text-emerald-700 text-lg">₹{dish.price}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                        {dish.description || 'Artfully prepared with prime ingredients and aromatic spices.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Quantity & Cart Action */}
+                  <div className="p-6 pt-0 border-t border-slate-100 flex items-center justify-between mt-4">
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                      {dish.category}
+                    </span>
+
+                    {dish.is_available ? (
+                      qty > 0 ? (
+                        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                          <button 
+                            onClick={() => updateCart(dish, -1)}
+                            className="p-1 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="font-bold text-xs text-emerald-900 w-4 text-center">{qty}</span>
+                          <button 
+                            onClick={() => updateCart(dish, 1)}
+                            className="p-1 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => updateCart(dish, 1)}
+                          className="btn-emerald !py-2 !px-4 text-xs font-bold shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add to Order</span>
+                        </button>
+                      )
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-400">Unavailable</span>
+                    )}
+
+                  </div>
+
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {loading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="cloud-card h-[600px] animate-pulse" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="cloud-card py-48 text-center border-dashed border-2 max-w-5xl mx-auto animate-fade-in">
-            <div className="w-24 h-24 bg-[var(--theme-accent)] rounded-[2rem] flex items-center justify-center mx-auto mb-10">
-               <Utensils size={48} className="text-slate-200" />
+      </section>
+
+      {/* ── FLOATING CART SUMMARY BAR ── */}
+      {cartItems.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-4 animate-slide-up">
+          <div className="bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex items-center justify-between border-2 border-emerald-500/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold">
+                <ShoppingCart className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">
+                  {cartItems.length} {cartItems.length === 1 ? 'Dish' : 'Dishes'} Selected
+                </p>
+                <p className="text-[11px] text-emerald-400 font-semibold">
+                  Subtotal: ₹{cartTotal}
+                </p>
+              </div>
             </div>
-            <h3 className="text-4xl font-black text-slate-300 tracking-tighter uppercase">
-              {search ? `No dishes found for "${search}"` : 'Loading menu...'}
-            </h3>
-            {search && <button onClick={() => setSearch('')} className="btn-secondary mt-12">CLEAR FILTER</button>}
+
+            <button
+              onClick={handleProceedToBooking}
+              className="btn-emerald !py-2.5 !px-6 text-xs font-bold shadow-lg"
+            >
+              <span>Attach Order to Table Reservation</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8 md:gap-10 animate-fade-in" style={{ animationDelay: '0.8s' }}>
-            {filtered.map(dish => (
-              <DishCard key={dish.id} dish={dish} tabEmoji={currentTab?.emoji} />
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* ── FOOTER ── */}
+      <Footer />
+
     </div>
   );
 }

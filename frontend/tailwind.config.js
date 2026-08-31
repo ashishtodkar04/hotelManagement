@@ -8,21 +8,57 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: {
-          DEFAULT: '#f59e0b',
-          hover: '#d97706',
-          light: 'rgba(245,158,11,0.15)',
+        gold: {
+          50: '#fffdf5',
+          100: '#fef9c3',
+          200: '#fef08a',
+          300: '#fde047',
+          400: '#facc15',
+          500: '#eab308',
+          600: '#ca8a04',
+          700: '#a16207',
+          800: '#854d0e',
+          900: '#713f12',
         },
-        dark: {
-          950: '#020617',
-          900: '#0f172a',
-          800: '#1e293b',
-          700: '#334155',
+        champagne: {
+          50: '#faf8f5',
+          100: '#f5f0e8',
+          200: '#e8ddcc',
+          300: '#dac7ac',
+          400: '#caad89',
+          500: '#b89267',
         },
+        emerald: {
+          50: '#ecfdf5',
+          100: '#d1fae5',
+          500: '#10b981',
+          600: '#059669',
+          700: '#047857',
+        },
+        sapphire: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+        },
+        amethyst: {
+          50: '#f5f3ff',
+          100: '#ede9fe',
+          600: '#7c3aed',
+          700: '#6d28d9',
+        },
+        rose: {
+          50: '#fff1f2',
+          100: '#ffe4e6',
+          600: '#e11d48',
+          700: '#be123c',
+        }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Playfair Display', 'serif'],
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        serif: ['"Playfair Display"', 'Georgia', 'serif'],
+        display: ['"Playfair Display"', 'serif'],
       },
       backdropBlur: {
         xs: '2px',

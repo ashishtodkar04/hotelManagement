@@ -1,89 +1,34 @@
-import { useLocation } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';
+import React from 'react';
 
 /**
- * SpaceBackground — immersive 3-D space scene rendered globally behind all pages.
- * Contains: shooting stars, twinkling stars, floating asteroids, distant orbiting planets,
- * nebula wisps, moon craters. All purely CSS-driven for performance.
+ * Ambient Light Background Container
+ * Provides a subtle, luxury champagne and ivory ambient gradient backdrop.
  */
 export default function SpaceBackground() {
-  const { theme } = useTheme();
-  const location = useLocation();
-  const path = location.pathname;
-  const isDark = theme === 'dark';
-
-  let pageType = null;
-  if (path === '/') {
-    pageType = isDark ? 'gas-giant' : 'sun';
-  } else if (path.startsWith('/booking')) {
-    pageType = 'ocean';
-  }
-
-  const planetClass = pageType ? {
-    'gas-giant': 'planet-gas-giant',
-    'sun': 'planet-sun',
-    'ocean': 'planet-ocean'
-  }[pageType] : '';
-
   return (
-    <div className="ambient-bg" aria-hidden="true">
-      {/* Nebula colour washes */}
-      <div className="orb orb-1" />
-      <div className="orb orb-2" />
-      <div className="orb orb-3" />
+    <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden bg-[#faf8f5]">
+      {/* Soft Ambient Orbs */}
+      <div 
+        className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full blur-[140px] opacity-40"
+        style={{ background: 'radial-gradient(circle, #fde68a 0%, #fef3c7 60%, transparent 100%)' }}
+      />
+      <div 
+        className="absolute top-1/3 -right-40 w-[700px] h-[700px] rounded-full blur-[160px] opacity-30"
+        style={{ background: 'radial-gradient(circle, #fed7aa 0%, #ffedd5 60%, transparent 100%)' }}
+      />
+      <div 
+        className="absolute -bottom-40 left-1/4 w-[650px] h-[650px] rounded-full blur-[150px] opacity-25"
+        style={{ background: 'radial-gradient(circle, #e0f2fe 0%, #bae6fd 60%, transparent 100%)' }}
+      />
 
-      {/* ── Shooting stars ── */}
-      <div className="shooting-star" style={{ top: '12%', left: '15%', animationDelay: '0s',   animationDuration: '6s' }} />
-      <div className="shooting-star" style={{ top: '28%', left: '55%', animationDelay: '3s',   animationDuration: '8s' }} />
-
-      {/* ── Twinkling stars ── */}
-      {[
-        { top:'5%',  left:'8%',  s:3, d:'2.1s' },
-        { top:'18%', left:'88%', s:4, d:'1.8s' },
-        { top:'30%', left:'22%', s:2, d:'4.2s' },
-        { top:'55%', left:'90%', s:3, d:'1.5s' },
-        { top:'75%', left:'75%', s:4, d:'2.3s' },
-        { top:'92%', left:'15%', s:2, d:'4.0s' },
-        { top:'42%', left:'82%', s:2, d:'3.5s' },
-      ].map((star, i) => (
-        <div key={i} className="twinkle-star" style={{
-          top: star.top, left: star.left,
-          width: star.s, height: star.s,
-          animationDelay: star.d,
-        }} />
-      ))}
-
-      {/* ── Floating asteroids / space debris ── */}
-      <div className="asteroid asteroid-1" />
-      <div className="asteroid asteroid-2" />
-      <div className="asteroid asteroid-3" />
-
-      {/* ── Distant mini planets in orbit ── */}
-      <div className="orbit-ring">
-        <div className="orbit-planet orbit-planet-1" />
-      </div>
-      <div className="orbit-ring orbit-ring-2">
-        <div className="orbit-planet orbit-planet-2" />
-      </div>
-
-      {/* ── Nebula wisps ── */}
-      <div className="nebula-wisp nebula-wisp-1" />
-      <div className="nebula-wisp nebula-wisp-2" />
-      <div className="nebula-wisp nebula-wisp-3" />
-
-      {/* ── CENTRAL CELESTIAL BODY ── */}
-      {pageType && <div className={`celestial-body ${planetClass}`} />}
-
-      {/* Gas Giant orbiting rings */}
-      {pageType === 'gas-giant' && <div className="celestial-ring" />}
-
-      {/* Floating Clouds for Ocean Planet */}
-      {pageType === 'ocean' && (
-        <>
-          <div className="space-cloud space-cloud-1" />
-          <div className="space-cloud space-cloud-2" />
-        </>
-      )}
+      {/* Subtle Pattern Grid */}
+      <div 
+        className="absolute inset-0 opacity-[0.02]"
+        style={{
+          backgroundImage: `radial-gradient(#0f172a 1px, transparent 1px)`,
+          backgroundSize: '32px 32px'
+        }}
+      />
     </div>
   );
 }

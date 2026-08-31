@@ -1,344 +1,387 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { QrCode, CheckCircle, Clock, ArrowRight, CreditCard, ShieldCheck, Activity, Sparkles } from 'lucide-react';
 import api from '../services/api';
 import socket from '../services/socket';
-import useStore from '../store/useStore';
-import { useLanguage } from '../context/LanguageContext';
-
-const ADV_AMOUNT = 500; 
+import { useHotel } from '../hooks/useHotel';
+import Footer from '../components/Footer';
+import { 
+  CreditCard, 
+  QrCode, 
+  CheckCircle2, 
+  Clock, 
+  ShieldCheck, 
+  Copy, 
+  Check, 
+  AlertCircle, 
+  Printer, 
+  FileText, 
+  ArrowRight,
+  Sparkles,
+  RefreshCw
+} from 'lucide-react';
 
 export default function Payment() {
   const { bookingId } = useParams();
   const navigate = useNavigate();
-  const { user } = useStore();
-  const { t } = useLanguage();
+  const { name: HOTEL_NAME, phone } = useHotel();
 
   const [booking, setBooking] = useState(null);
-  const [qrImage, setQrImage] = useState('');
-  const [fuzzyAmount, setFuzzyAmount] = useState(null);
-  const [utr, setUtr] = useState('');
-  const [step, setStep] = useState('pay'); 
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [amount, setAmount] = useState(ADV_AMOUNT);
-  const [showManual, setShowManual] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(120); 
-  const [timerActive, setTimerActive] = useState(true);
-  const [monitorOnline, setMonitorOnline] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [qrCodeData, setQrCodeData] = useState('');
+  const [expectedAmount, setExpectedAmount] = useState(0);
+  const [loadingQr, setLoadingQr] = useState(false);
+
+  const [utrInput, setUtrInput] = useState('');
+  const [submittingUtr, setSubmittingUtr] = useState(false);
+  const [utrSuccessMsg, setUtrSuccessMsg] = useState('');
+  const [utrErrorMsg, setUtrErrorMsg] = useState('');
+
+  const [copiedUpi, setCopiedUpi] = useState(false);
+  const [upiId, setUpiId] = useState('');
 
   useEffect(() => {
-    const checkMonitor = async () => {
-      try {
-        const res = await api.get('/api/monitor-status');
-        setMonitorOnline(res.data.active ?? res.data.online);
-      } catch {
-        setMonitorOnline(false);
-      }
-    };
-    checkMonitor();
-    const interval = setInterval(checkMonitor, 30000);
-    return () => clearInterval(interval);
-  }, []);
-  
-  useEffect(() => {
-    if (!bookingId || !user?.id) return;
+    fetchBookingDetails();
+    fetchHotelConfig();
+
+    // Socket real-time listener for payment verification updates
     socket.connect();
-    socket.emit('join_user', { userId: user.id });
-    
-    const handleUpdate = (data) => {
-      if (Number(data.bookingId) === Number(bookingId)) {
-        // Derive status from the event data directly to avoid stale closure
-        const isFinal = data.status === 'completed' || data.status === 'awaiting_final_payment';
-        const targetStatus = isFinal ? 'completed' : 'confirmed';
-        if (data.status === targetStatus || data.status === 'completed' || data.status === 'confirmed') {
-          setStep('verified');
-          setTimerActive(false);
-        }
+    const handleBookingUpdate = (data) => {
+      if (String(data.bookingId) === String(bookingId)) {
+        fetchBookingDetails();
       }
     };
-    
-    socket.on('booking_update', handleUpdate);
+    socket.on('booking_update', handleBookingUpdate);
+    socket.on('payment_verified', handleBookingUpdate);
+
+    // Polling interval every 4s to check auto-email verification status
+    const interval = setInterval(() => {
+      fetchBookingDetails(true);
+    }, 4000);
+
     return () => {
-      socket.off('booking_update', handleUpdate);
-      socket.disconnect();
+      socket.off('booking_update', handleBookingUpdate);
+      socket.off('payment_verified', handleBookingUpdate);
+      clearInterval(interval);
     };
-  }, [bookingId, user?.id]);
+  }, [bookingId]);
 
-  useEffect(() => {
-    if (!timerActive || step !== 'pay') return;
-    const interval_timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(interval_timer);
-          setTimerActive(false);
-          setShowManual(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval_timer);
-  }, [timerActive, step]);
-
-  useEffect(() => {
-    if (step !== 'pay' || !bookingId) return;
-    const interval_status = setInterval(async () => {
-      try {
-        const res = await api.get(`/api/booking/${bookingId}`);
-        if (res.data.success) {
-          const b = res.data.booking;
-          const isFinal = b.status === 'awaiting_final_payment' || b.status === 'completed' || b.status === 'seated';
-          const isVerified = isFinal ? b.final_payment_verified === 1 : b.payment_verified === 1;
-          if (isVerified) {
-            setStep('verified');
-            setTimerActive(false);
-            clearInterval(interval_status);
-          }
-        }
-      } catch (err) { 
-        if (err.response?.status === 401) {
-          clearInterval(interval_status);
-          navigate('/auth');
-        }
-      }
-    }, 30000);
-    return () => clearInterval(interval_status);
-  }, [step, bookingId, navigate]);
-
-  useEffect(() => {
-    if (!user) { navigate('/auth'); return; }
-  }, [user, navigate]);
-
-  useEffect(() => {
-    if (!bookingId || !user) return;
-    const init = async () => {
-      try {
-        const bRes = await api.get(`/api/booking/${bookingId}`);
-        if (bRes.data.success) {
-          const b = bRes.data.booking;
-          setBooking(b);
-          const isFinal = b.status === 'awaiting_final_payment' || b.status === 'completed' || b.status === 'seated';
-          const payAmount = isFinal ? Math.max(0, Number(b.bill_amount || 0) - Number(b.adv_paid || 0)) : ADV_AMOUNT;
-          const payType = isFinal ? 'final' : 'advance';
-          const qrRes = await api.post('/create-qr', { amount: payAmount, bookingId, type: payType });
-          if (qrRes.data.qrData) {
-            setQrImage(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrRes.data.qrData)}`);
-            const fa = qrRes.data.fuzzyAmount || qrRes.data.amount;
-            setFuzzyAmount(fa);
-            setAmount(fa); 
-          }
-        }
-      } catch {
-        setError('Gateway synchronization failed.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    init();
-  }, [bookingId, user]);
-
-  const handleSubmitUTR = async (e) => {
-    e.preventDefault();
-    if (!utr.trim() || utr.trim().length < 6) {
-      setError('Invalid UTR number. Must be at least 6 characters.');
-      return;
-    }
-    setError(''); setSubmitting(true);
+  const fetchHotelConfig = async () => {
     try {
-      await api.post('/api/submit-payment', {
-        bookingId: Number(bookingId),
-        amount,
-        utrNumber: utr.trim(),
-        method: 'UPI',
-      });
-      setStep('submitted');
-    } catch (err) {
-      setError(err.response?.data?.error || 'Submission sequence interrupted.');
-    } finally {
-      setSubmitting(false);
+      const res = await api.get('/api/hotel-config');
+      if (res.data.upiId) {
+        setUpiId(res.data.upiId);
+      }
+    } catch (e) {
+      console.warn('Config error:', e);
     }
   };
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--theme-bg)]">
-      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  const fetchBookingDetails = async (isBackground = false) => {
+    try {
+      if (!isBackground) setLoading(true);
+      const res = await api.get(`/api/booking/${bookingId}`);
+      if (res.data.success && res.data.booking) {
+        setBooking(res.data.booking);
+        setOrders(res.data.orders || []);
+        
+        // Generate QR code if expected amount not set
+        if (!qrCodeData && res.data.booking.status === 'pending') {
+          generateQr(res.data.booking.adv_paid || 500);
+        }
+      }
+    } catch (err) {
+      console.error('Fetch booking error:', err);
+      if (!isBackground) setError('Failed to load booking payment record.');
+    } finally {
+      if (!isBackground) setLoading(false);
+    }
+  };
 
-  if (step === 'submitted' || step === 'verified') return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-[var(--theme-bg)] transition-colors duration-500">
-      <div className="cloud-card max-w-2xl w-full p-16 md:p-24 text-center shadow-2xl animate-fade-in relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
-           {step === 'verified' ? <CheckCircle size={150} /> : <Clock size={150} />}
-        </div>
-        <div className={`w-28 h-28 ${step === 'verified' ? 'bg-emerald-500' : 'bg-blue-600'} rounded-[2.5rem] flex items-center justify-center mx-auto mb-12 shadow-2xl shadow-blue-500/20`}>
-          {step === 'verified' ? <CheckCircle size={56} className="text-white" /> : <Clock size={56} className="text-white animate-pulse" />}
-        </div>
-        <h2 className="font-serif italic text-6xl font-bold mb-8 text-[var(--theme-text)] leading-tight">
-          {step === 'verified' ? t('verified_msg') : t('pending_msg')}
-        </h2>
-        <p className="text-slate-400 dark:text-slate-500 text-xl mb-16 font-bold tracking-tight leading-relaxed max-w-lg mx-auto">
-          {step === 'verified' 
-            ? t('verified_desc')
-            : t('pending_desc').replace('{utr}', utr)}
-        </p>
-        <div className="space-y-6">
-          <Link to="/dashboard" className="btn-primary w-full py-7 rounded-2xl shadow-2xl">
-            {t('dashboard').toUpperCase()} <ArrowRight size={24} />
-          </Link>
-          <Link to="/" className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-400 hover:text-blue-600 transition-all flex items-center justify-center gap-4 group">
-             <div className="w-12 h-px bg-[var(--theme-border)] group-hover:w-20 group-hover:bg-blue-600 transition-all" />
-             {t('home').toUpperCase()}
-             <div className="w-12 h-px bg-[var(--theme-border)] group-hover:w-20 group-hover:bg-blue-600 transition-all" />
-          </Link>
+  const generateQr = async (amount) => {
+    try {
+      setLoadingQr(true);
+      const res = await api.post('/create-qr', { amount, bookingId, type: 'advance' });
+      if (res.data.success) {
+        setQrCodeData(res.data.qrData);
+        setExpectedAmount(res.data.amount || amount);
+      }
+    } catch (err) {
+      console.warn('QR generation error:', err);
+    } finally {
+      setLoadingQr(false);
+    }
+  };
+
+  const handleCopyUpi = () => {
+    if (!upiId) return;
+    navigator.clipboard.writeText(upiId);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2000);
+  };
+
+  const handleSubmitUtr = async (e) => {
+    e.preventDefault();
+    setUtrErrorMsg('');
+    setUtrSuccessMsg('');
+
+    if (!utrInput.trim() || utrInput.trim().length < 8) {
+      setUtrErrorMsg('Please enter a valid 12-digit UTR or Transaction Ref Number.');
+      return;
+    }
+
+    try {
+      setSubmittingUtr(true);
+      const payload = {
+        bookingId: Number(bookingId),
+        amount: expectedAmount || booking?.adv_paid || 500,
+        utrNumber: utrInput.trim(),
+        method: 'UPI'
+      };
+
+      const res = await api.post('/api/submit-payment', payload);
+      if (res.data.success) {
+        setUtrSuccessMsg('UTR submitted successfully! Auto-verification in progress...');
+        fetchBookingDetails();
+      } else {
+        setUtrErrorMsg(res.data.error || 'Failed to record UTR payment reference.');
+      }
+    } catch (err) {
+      console.error('UTR Submit Error:', err);
+      setUtrErrorMsg(err.response?.data?.error || 'Server connection error.');
+    } finally {
+      setSubmittingUtr(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5]">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold text-slate-600">Loading Payment Gateway...</p>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (error || !booking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] px-4">
+        <div className="luxury-card p-8 text-center max-w-md w-full bg-white space-y-4">
+          <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
+          <h2 className="font-serif font-bold text-xl text-slate-900">Reservation Not Found</h2>
+          <p className="text-xs text-slate-500">{error || 'The requested booking ID is invalid.'}</p>
+          <Link to="/booking" className="btn-sapphire text-xs">Return to Booking</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isVerified = booking.payment_verified === 1 || booking.status === 'confirmed' || booking.status === 'seated' || booking.status === 'completed';
 
   return (
-    <div className="min-h-screen bg-[var(--theme-bg)] pt-40 pb-32 px-6 sm:px-12 transition-colors duration-500">
-      <div className="max-w-[1600px] mx-auto">
-        <header className="text-center mb-24 relative">
-          <div className="inline-flex items-center gap-3 bg-blue-600/10 text-blue-600 mb-8 py-3 px-8 rounded-full text-[10px] font-black uppercase tracking-[0.4em] border border-blue-600/20 shadow-xl animate-fade-in">
-             <ShieldCheck size={14} className="animate-pulse" /> {t('secure_connection')}
+    <div className="min-h-screen bg-[#faf8f5]">
+      
+      {/* ── HEADER HERO ── */}
+      <section className="pt-12 pb-12 bg-gradient-to-b from-purple-900/10 via-purple-500/5 to-transparent">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-800 text-xs font-bold uppercase tracking-widest">
+            <ShieldCheck className="w-4 h-4 text-purple-600" />
+            <span>Encrypted Financial Gateway</span>
           </div>
-          <h1 className="font-serif italic text-7xl md:text-[10rem] font-bold mb-10 text-[var(--theme-text)] leading-[0.8] tracking-tighter animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            {t('payment_header').split(' ')[0]} <span className="text-blue-600">{t('payment_header').split(' ').slice(1).join(' ')}</span>
+          <h1 className="font-serif text-4xl sm:text-6xl font-bold text-slate-900">
+            Payment & <span className="accent-amethyst-gradient bg-clip-text text-transparent">Verification</span>
           </h1>
-          <p className="text-slate-400 dark:text-slate-500 text-xl md:text-2xl max-w-3xl mx-auto font-bold tracking-tight leading-relaxed animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            {t('payment_subtitle')}
+          <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+            Booking Reference: <span className="font-bold text-slate-900 bg-purple-100 px-2.5 py-1 rounded-lg">{booking.booking_ref}</span>
           </p>
-        </header>
+        </div>
+      </section>
 
-        <div className="grid lg:grid-cols-12 gap-16">
-          {/* Reservation Details (Left) */}
-          <div className="lg:col-span-4 space-y-10 animate-fade-in" style={{ animationDelay: '0.6s' }}>
-            <div className="cloud-card p-12 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
-                <CreditCard size={120} />
-              </div>
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] mb-12">Session Architecture</h3>
-              {booking && (
-                <div className="space-y-10">
-                  <div className="group/item">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mb-3 group-hover/item:text-blue-600 transition-colors">{t('session_ref')}</p>
-                    <p className="font-mono font-black text-xl text-[var(--theme-text)] tracking-tighter">{booking.booking_ref}</p>
-                  </div>
-                  <div className="group/item">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mb-3 group-hover/item:text-blue-600 transition-colors">{t('temporal_window')}</p>
-                    <p className="font-black text-2xl text-[var(--theme-text)] tracking-tighter font-serif">
-                       {new Date(booking.booking_date).toLocaleDateString('en-GB', {day:'numeric',month:'long'})} <span className="text-slate-400 dark:text-slate-600">@</span> {booking.time_slot}
-                    </p>
-                  </div>
-                  <div className="flex justify-between items-end pt-10 border-t border-[var(--theme-border)]">
-                    <div>
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mb-1">{t('placement')}</p>
-                       <p className="font-black text-4xl text-blue-600 font-serif tracking-tighter">{t('table')} {booking.table_number}</p>
-                    </div>
-                    <div className="text-right">
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mb-1">{t('attendance')}</p>
-                       <p className="font-black text-2xl text-[var(--theme-text)] tracking-tighter">{booking.guests} {t('guests')}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+      {/* ── MAIN PAYMENT CONTENT ── */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+        
+        {/* Verification Success Banner */}
+        {isVerified ? (
+          <div className="luxury-card p-8 bg-white border-2 border-emerald-400 shadow-2xl text-center space-y-6 animate-fade-in mb-8">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="font-serif font-bold text-3xl text-slate-900">
+                Payment Verified & Table Confirmed!
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
+                Your advance payment of <span className="font-bold text-emerald-700">₹{booking.adv_paid}</span> has been confirmed. Your table <span className="font-bold text-slate-900">{booking.table_number}</span> is locked for {booking.booking_date} at {booking.time_slot}.
+              </p>
             </div>
 
-            {!monitorOnline && (
-              <div className="bg-blue-600/5 border border-blue-600/10 rounded-[2.5rem] p-10 flex items-start gap-8 group/alert">
-                <Activity size={32} className="text-blue-600 shrink-0 group-hover/alert:scale-110 transition-transform" />
-                <div>
-                  <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] mb-3">Live Monitor Latency</p>
-                  <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight">Auto-verification is currently delayed. You can enter your UTR number below for faster processing.</p>
-                </div>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+              <Link to={`/admin/print/${booking.id}`} target="_blank" className="btn-emerald text-xs font-bold shadow-md">
+                <Printer className="w-4 h-4" />
+                <span>View & Print Official PDF Bill</span>
+              </Link>
+              <Link to="/history" className="btn-light-secondary text-xs font-bold">
+                <span>View My Reservations</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
-
-          {/* Payment Terminal (Right) */}
-          <div className="lg:col-span-8 animate-fade-in" style={{ animationDelay: '0.8s' }}>
-            <div className="cloud-card p-12 md:p-20 shadow-2xl relative overflow-hidden">
-              <div className="flex flex-col xl:flex-row items-center gap-20">
-                <div className="text-center space-y-10">
-                  <div className="bg-white p-8 rounded-[3rem] border border-slate-200 inline-block shadow-2xl group relative overflow-hidden">
-                    <div className="absolute inset-0 bg-blue-600/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                    {qrImage ? (
-                      <img src={qrImage} alt="UPI QR" className="w-64 h-64 object-contain transition-transform group-hover:scale-110 duration-[2s] relative z-10" />
-                    ) : (
-                      <div className="w-64 h-64 flex items-center justify-center opacity-10"><QrCode size={100} /></div>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em]">Authorization Total</p>
-                    <p className="text-7xl font-black text-blue-600 font-serif tracking-tighter">₹{fuzzyAmount || amount}</p>
-                  </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* Left Column: QR Code & UPI Details */}
+            <div className="lg:col-span-6 space-y-6">
+              
+              <div className="luxury-card p-6 sm:p-8 bg-white space-y-6 border-2 border-purple-200/80 shadow-xl text-center">
+                
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <span className="text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50 px-3 py-1 rounded-full">
+                    UPI QR Code Checkout
+                  </span>
+                  <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-amber-500 animate-spin" /> Live Syncing
+                  </span>
                 </div>
 
-                <div className="flex-1 space-y-12 w-full">
-                  {!showManual ? (
-                    <div className="bg-[var(--theme-accent)] rounded-[3rem] p-12 border border-[var(--theme-border)] text-center space-y-10 group/timer">
-                      <div className="w-20 h-20 bg-blue-600 rounded-[1.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/20 group-hover/timer:rotate-12 transition-transform duration-700">
-                        <Clock size={40} className="text-white animate-pulse" />
-                      </div>
-                      <div className="space-y-4">
-                        <h4 className="text-2xl font-black text-[var(--theme-text)] uppercase tracking-tighter">
-                          {timeLeft > 0 ? `CHECKING PAYMENT... ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : t('manual_override')}
-                        </h4>
-                        <p className="text-sm text-slate-400 font-bold leading-relaxed tracking-tight px-10">We are checking for your payment. This is automatic.</p>
-                      </div>
-                      <button onClick={() => setShowManual(true)} className="text-[11px] font-black text-blue-600 uppercase tracking-[0.4em] hover:tracking-[0.6em] transition-all">ENTER UTR MANUALLY</button>
+                {/* QR Box */}
+                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 inline-block mx-auto relative shadow-inner">
+                  {loadingQr ? (
+                    <div className="w-52 h-52 flex items-center justify-center text-xs text-slate-400">
+                      Generating Payment QR...
                     </div>
                   ) : (
-                    <div className="space-y-10 animate-fade-in">
-                      <div className="space-y-4">
-                        <h4 className="text-3xl font-black text-[var(--theme-text)] tracking-tighter uppercase">Manual Authorization</h4>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.4em]">Initialize manual link via 12-digit UPI Identifier (UTR)</p>
-                      </div>
-
-                      {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-3xl p-8 text-[10px] font-black uppercase tracking-[0.3em] text-center animate-shake">{error}</div>}
-
-                      <form onSubmit={handleSubmitUTR} className="space-y-8">
-                        <div className="group/input relative">
-                           <input
-                            type="text"
-                            placeholder="TRANSACTION ID (UTR)"
-                            value={utr}
-                            onChange={e => { setUtr(e.target.value); setError(''); }}
-                            className="w-full bg-[var(--theme-input)] border border-[var(--theme-border)] focus:ring-8 focus:ring-blue-600/5 py-8 px-12 font-mono text-2xl font-black tracking-[0.3em] rounded-[2.5rem] outline-none text-center"
-                            required
-                          />
-                        </div>
-                        <button type="submit" disabled={submitting || !utr.trim()} className="w-full btn-primary py-8 rounded-[2rem] shadow-2xl group/btn">
-                          {submitting ? (
-                             <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            <>{t('authorize_session').toUpperCase()} <ArrowRight size={24} className="group-hover/btn:translate-x-3 transition-transform" /></>
-                          )}
-                        </button>
-                        <button type="button" onClick={() => setShowManual(false)} className="w-full text-[11px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.4em] hover:text-blue-600 transition-colors">SYNCHRONIZING WITH LIVE GATEWAY...</button>
-                      </form>
-                    </div>
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrCodeData || `upi://pay?pa=hotel@upi&am=${expectedAmount || 500}`)}`} 
+                      alt="Payment UPI QR" 
+                      className="w-52 h-52 object-contain mx-auto rounded-xl border border-white shadow-md"
+                    />
                   )}
-                  
-                  <div className="pt-12 border-t border-[var(--theme-border)] flex flex-col items-center gap-8">
-                    <button onClick={() => navigate('/dashboard')} className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] hover:text-blue-600 transition-all flex items-center gap-4 group/desk">
-                       <div className="w-12 h-px bg-[var(--theme-border)] group-hover/desk:w-20 group-hover/desk:bg-blue-600 transition-all" />
-                       SETTLE AT PHYSICAL DESK
-                       <div className="w-12 h-px bg-[var(--theme-border)] group-hover/desk:w-20 group-hover/desk:bg-blue-600 transition-all" />
+                  <p className="text-[11px] font-bold text-slate-700 mt-3">
+                    Scan with GPay, PhonePe, Paytm, or BHIM UPI
+                  </p>
+                </div>
+
+                {/* Payable Amount */}
+                <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100 space-y-1">
+                  <span className="text-xs text-purple-700 font-semibold">Exact Amount To Transfer:</span>
+                  <p className="font-serif text-3xl font-bold text-purple-900">
+                    ₹{expectedAmount || booking.adv_paid || 500}
+                  </p>
+                </div>
+
+                {/* Copy UPI ID */}
+                {upiId && (
+                  <div className="flex items-center justify-between p-3 bg-slate-100 rounded-xl text-xs border border-slate-200">
+                    <span className="font-mono text-slate-700 truncate">{upiId}</span>
+                    <button
+                      onClick={handleCopyUpi}
+                      className="flex items-center gap-1 text-purple-700 font-bold hover:underline shrink-0 ml-2"
+                    >
+                      {copiedUpi ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                      <span>{copiedUpi ? 'Copied!' : 'Copy UPI'}</span>
                     </button>
-                    <p className="flex items-center gap-2 text-[9px] font-black text-blue-600 uppercase tracking-[0.4em] opacity-40">
-                      <Sparkles size={10} /> Secure Encryption Active
-                    </p>
                   </div>
+                )}
+
+              </div>
+
+            </div>
+
+            {/* Right Column: UTR Input & Booking Details */}
+            <div className="lg:col-span-6 space-y-6">
+              
+              {/* UTR Form */}
+              <div className="luxury-card p-6 sm:p-8 bg-white space-y-6 shadow-xl border-2 border-slate-200">
+                <div className="pb-4 border-b border-slate-100">
+                  <h3 className="font-serif font-bold text-xl text-slate-900">Submit Payment UTR Reference</h3>
+                  <p className="text-xs text-slate-500">Enter the 12-digit transaction ID from your bank SMS/App</p>
+                </div>
+
+                {utrSuccessMsg && (
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>{utrSuccessMsg}</span>
+                  </div>
+                )}
+
+                {utrErrorMsg && (
+                  <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <span>{utrErrorMsg}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmitUtr} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">12-Digit UTR / Ref Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 423987123456"
+                      value={utrInput}
+                      onChange={(e) => setUtrInput(e.target.value)}
+                      maxLength={20}
+                      className="w-full text-xs font-mono py-3.5 px-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500/20"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submittingUtr || !utrInput.trim()}
+                    className="w-full btn-gold !bg-purple-700 hover:!bg-purple-800 !py-3.5 text-xs font-bold disabled:opacity-50 shadow-md shadow-purple-700/20"
+                  >
+                    {submittingUtr ? 'Verifying UTR Reference...' : 'Submit UTR For Auto-Verification'}
+                  </button>
+                </form>
+
+                <div className="p-4 bg-slate-50 rounded-2xl text-xs text-slate-600 space-y-2 border border-slate-200">
+                  <div className="flex items-center gap-2 font-bold text-slate-900">
+                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    <span>Automated Email & SMS Verifier</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-slate-500">
+                    Our backend continuously scans Gmail bank alerts every 2 minutes. Once matched, your reservation converts to <span className="font-bold text-emerald-600">CONFIRMED</span> instantly.
+                  </p>
                 </div>
               </div>
+
+              {/* Reservation Breakdown Card */}
+              <div className="luxury-card p-6 bg-white space-y-3 text-xs text-slate-600">
+                <h4 className="font-serif font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">
+                  Reservation Summary
+                </h4>
+                <div className="flex justify-between">
+                  <span>Guest Name:</span>
+                  <span className="font-bold text-slate-900">{booking.staff_name || 'Guest'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Table Number:</span>
+                  <span className="font-bold text-purple-700">{booking.table_number}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Date & Slot:</span>
+                  <span className="font-bold text-slate-900">{booking.booking_date} ({booking.time_slot})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Guests:</span>
+                  <span className="font-bold text-slate-900">{booking.guests} Guests</span>
+                </div>
+              </div>
+
             </div>
+
           </div>
-        </div>
-      </div>
+        )}
+
+      </section>
+
+      {/* ── FOOTER ── */}
+      <Footer />
+
     </div>
   );
 }
